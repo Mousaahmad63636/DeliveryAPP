@@ -99,12 +99,12 @@
                     <DataGridTextColumn Header="الإجمالي" Binding="{Binding TotalPrice, StringFormat=\{0:N2\}}" Width="85"/>
                     <DataGridTextColumn Header="السائق" Binding="{Binding DriverName}" Width="120"/>
                     <DataGridTextColumn Header="رقم السيارة" Binding="{Binding DriverVehicleNumber}" Width="100"/>
-                    <DataGridTemplateColumn Header="إجراءات" Width="240">
+                    <DataGridTemplateColumn Header="إجراءات" Width="200">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
                                     <Button Margin="0,0,5,0" Click="btnEdit_Click" Tag="{Binding Id}"
-                                            Background="#8e44ad" Foreground="White" Width="55" Height="35">
+                        Background="#8e44ad" Foreground="White" Width="80" Height="35">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="Edit" Width="16" Height="16" VerticalAlignment="Center"/>
                                             <TextBlock Text=" تعديل" VerticalAlignment="Center"/>
@@ -115,23 +115,12 @@
                                             </Style>
                                         </Button.Resources>
                                     </Button>
-                                    <Button Margin="0,0,5,0" Click="btnPrintReceipt_Click" Tag="{Binding Id}"
-                                            Background="#2ecc71" Foreground="White" Width="55" Height="35">
-                                        <StackPanel Orientation="Horizontal">
-                                            <materialDesign:PackIcon Kind="Printer" Width="16" Height="16" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <Button.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="3"/>
-                                            </Style>
-                                        </Button.Resources>
-                                    </Button>
                                     <Button Margin="0,0,5,0" Click="btnMarkAsPaid_Click" Tag="{Binding Id}"
-                                            Background="#f39c12" Foreground="White" Width="90" Height="35"
-                                            Visibility="{Binding IsPaid, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        Background="#f39c12" Foreground="White" Width="90" Height="35"
+                        Visibility="{Binding IsPaid, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="CashCheck" Width="16" Height="16" VerticalAlignment="Center"/>
-                                            <TextBlock Text="دفع" VerticalAlignment="Center"/>
+                                            <TextBlock Text=" دفع" VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <Button.Resources>
                                             <Style TargetType="Border">
@@ -140,10 +129,9 @@
                                         </Button.Resources>
                                     </Button>
                                     <Button Margin="0,0,0,0" Click="btnDelete_Click" Tag="{Binding Id}"
-                                            Background="#e74c3c" Foreground="White" Width="55" Height="35">
+                        Background="#e74c3c" Foreground="White" Width="55" Height="35">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="Delete" Width="16" Height="16" VerticalAlignment="Center"/>
-                       
                                         </StackPanel>
                                         <Button.Resources>
                                             <Style TargetType="Border">

@@ -69,7 +69,23 @@ namespace ExpressServicePOS.UI.Views
                     TotalPrice = o.TotalPrice,
                     IsPaid = o.IsPaid,
                     DriverName = o.Driver?.Name ?? o.DriverName,
-                    DriverVehicleNumber = o.Driver?.VehiclePlateNumber ?? ""
+                    DriverVehicleNumber = o.Driver?.VehiclePlateNumber ?? "",
+                    // Added order data for editing
+                    OrderDescription = o.OrderDescription,
+                    Notes = o.Notes,
+                    CustomerId = o.CustomerId,
+                    DriverId = o.DriverId,
+                    RecipientName = o.RecipientName,
+                    RecipientPhone = o.RecipientPhone,
+                    SenderName = o.SenderName,
+                    SenderPhone = o.SenderPhone,
+                    PickupLocation = o.PickupLocation,
+                    DeliveryLocation = o.DeliveryLocation,
+                    Currency = o.Currency,
+                    PaymentMethod = o.PaymentMethod,
+                    IsBreakable = o.IsBreakable,
+                    IsReplacement = o.IsReplacement,
+                    IsReturned = o.IsReturned
                 }).ToList();
 
                 dgOrders.ItemsSource = _orders;
@@ -113,6 +129,21 @@ namespace ExpressServicePOS.UI.Views
                 DeliveryStatus.Failed => "فشل التوصيل",
                 DeliveryStatus.Cancelled => "ملغي",
                 _ => "غير معروف"
+            };
+        }
+
+        private DeliveryStatus GetStatusFromText(string statusText)
+        {
+            return statusText switch
+            {
+                "قيد الانتظار" => DeliveryStatus.Pending,
+                "تم الاستلام" => DeliveryStatus.PickedUp,
+                "قيد التوصيل" => DeliveryStatus.InTransit,
+                "تم التسليم" => DeliveryStatus.Delivered,
+                "تسليم جزئي" => DeliveryStatus.PartialDelivery,
+                "فشل التوصيل" => DeliveryStatus.Failed,
+                "ملغي" => DeliveryStatus.Cancelled,
+                _ => DeliveryStatus.Pending
             };
         }
 
@@ -169,7 +200,7 @@ namespace ExpressServicePOS.UI.Views
         {
             if (dgOrders.SelectedItem is OrderViewModel selectedOrder)
             {
-                MessageBox.Show($"عرض تفاصيل الطلب رقم {selectedOrder.OrderNumber}", "تفاصيل الطلب", MessageBoxButton.OK, MessageBoxImage.Information);
+                EditOrder(selectedOrder.Id);
             }
         }
 
@@ -177,7 +208,37 @@ namespace ExpressServicePOS.UI.Views
         {
             if (sender is Button button && button.Tag is int orderId)
             {
-                MessageBox.Show($"تعديل الطلب رقم {orderId}", "تعديل الطلب", MessageBoxButton.OK, MessageBoxImage.Information);
+                EditOrder(orderId);
+            }
+        }
+
+        private async void EditOrder(int orderId)
+        {
+            try
+            {
+                var order = await _dbContext.Orders
+                    .Include(o => o.Customer)
+                    .Include(o => o.Driver)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                if (order == null)
+                {
+                    MessageBox.Show("الطلب غير موجود", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var dialog = new OrderEditDialog(order);
+                if (dialog.ShowDialog() == true)
+                {
+                    await _dbContext.SaveChangesAsync();
+                    LoadOrders();
+                    MessageBox.Show("تم تحديث الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error editing order");
+                MessageBox.Show($"حدث خطأ أثناء تعديل الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -207,24 +268,6 @@ namespace ExpressServicePOS.UI.Views
                         MessageBox.Show($"حدث خطأ أثناء حذف الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
-            }
-        }
-
-        private async void btnPrintReceipt_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (sender is Button button && button.Tag is int orderId)
-                {
-                    var receiptDocument = await _printService.CreateExpressServiceReceiptAsync(orderId);
-                    _printService.ShowPrintPreview(receiptDocument);
-                    _logger?.LogInformation($"Print Express Service receipt requested for order ID: {orderId}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error printing receipt");
-                MessageBox.Show($"حدث خطأ أثناء طباعة الإيصال: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -265,7 +308,6 @@ namespace ExpressServicePOS.UI.Views
 
                 PrintDialog printDialog = new PrintDialog();
 
-                // Force landscape orientation by setting the print ticket
                 if (printDialog.PrintTicket != null)
                 {
                     printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Landscape;
@@ -273,11 +315,9 @@ namespace ExpressServicePOS.UI.Views
 
                 if (printDialog.ShowDialog() == true)
                 {
-                    // Apply pagination settings
                     document.PageHeight = printDialog.PrintableAreaHeight;
                     document.PageWidth = printDialog.PrintableAreaWidth;
 
-                    // Print with appropriate description
                     IDocumentPaginatorSource paginatorSource = document;
                     printDialog.PrintDocument(
                         paginatorSource.DocumentPaginator,
@@ -296,16 +336,14 @@ namespace ExpressServicePOS.UI.Views
             var document = new FlowDocument
             {
                 FontFamily = new FontFamily("Arial"),
-                FontSize = 10, // Reduced font size
-                PagePadding = new Thickness(20), // Reduced padding
+                FontSize = 10,
+                PagePadding = new Thickness(20),
                 FlowDirection = FlowDirection.RightToLeft,
                 ColumnWidth = double.MaxValue,
-                // Set to landscape orientation
-                PageWidth = 11.69 * 96, // A4 height (landscape) in pixels
-                PageHeight = 8.27 * 96  // A4 width (landscape) in pixels
+                PageWidth = 11.69 * 96,
+                PageHeight = 8.27 * 96
             };
 
-            // Add company header
             var headerPara = new Paragraph(new Run("خدمة اكسبرس - تقرير الطلبات"))
             {
                 FontSize = 16,
@@ -315,7 +353,6 @@ namespace ExpressServicePOS.UI.Views
             };
             document.Blocks.Add(headerPara);
 
-            // Add date and time of printing
             var datePara = new Paragraph(new Run($"تاريخ الطباعة: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"))
             {
                 TextAlignment = TextAlignment.Center,
@@ -323,7 +360,6 @@ namespace ExpressServicePOS.UI.Views
             };
             document.Blocks.Add(datePara);
 
-            // Add summary section with horizontal layout
             var summaryPara = new Paragraph
             {
                 BorderBrush = Brushes.LightGray,
@@ -343,7 +379,6 @@ namespace ExpressServicePOS.UI.Views
 
             document.Blocks.Add(summaryPara);
 
-            // Create table with optimized column widths
             var table = new Table
             {
                 CellSpacing = 0,
@@ -351,20 +386,18 @@ namespace ExpressServicePOS.UI.Views
                 BorderThickness = new Thickness(0.5)
             };
 
-            // Define columns with optimized widths for landscape mode
-            table.Columns.Add(new TableColumn { Width = new GridLength(40) });   // معرف - ID
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // رقم الطلب - Order #
-            table.Columns.Add(new TableColumn { Width = new GridLength(110) });  // اسم العميل - Customer
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // رقم الهاتف - Phone
-            table.Columns.Add(new TableColumn { Width = new GridLength(140) });  // العنوان - Address
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // تاريخ الطلب - Order Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // تاريخ الدفع - Payment Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // السعر - Price
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // الربح - Profit
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // الإجمالي - Total
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // الحالة - Status
+            table.Columns.Add(new TableColumn { Width = new GridLength(40) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(110) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(140) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });
 
-            // Create header row
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
 
@@ -384,7 +417,6 @@ namespace ExpressServicePOS.UI.Views
             headerRowGroup.Rows.Add(headerRow);
             table.RowGroups.Add(headerRowGroup);
 
-            // Add data rows
             var dataRowGroup = new TableRowGroup();
             IEnumerable<OrderViewModel> itemsSource = dgOrders.ItemsSource as IEnumerable<OrderViewModel>;
 
@@ -418,11 +450,8 @@ namespace ExpressServicePOS.UI.Views
             }
 
             table.RowGroups.Add(dataRowGroup);
-
-            // Add the table to the document
             document.Blocks.Add(table);
 
-            // Add footer
             var footerPara = new Paragraph(new Run("جميع الحقوق محفوظة لخدمة اكسبرس © " + DateTime.Now.Year))
             {
                 TextAlignment = TextAlignment.Center,
@@ -440,7 +469,7 @@ namespace ExpressServicePOS.UI.Views
             var paragraph = new Paragraph(new Run(text ?? "-"))
             {
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(2) // Reduced margin
+                Margin = new Thickness(2)
             };
 
             if (fontWeight != default)
@@ -490,5 +519,22 @@ namespace ExpressServicePOS.UI.Views
         public bool IsPaid { get; set; }
         public string DriverName { get; set; }
         public string DriverVehicleNumber { get; set; }
+
+        // Added for editing
+        public string OrderDescription { get; set; }
+        public string Notes { get; set; }
+        public int CustomerId { get; set; }
+        public int? DriverId { get; set; }
+        public string RecipientName { get; set; }
+        public string RecipientPhone { get; set; }
+        public string SenderName { get; set; }
+        public string SenderPhone { get; set; }
+        public string PickupLocation { get; set; }
+        public string DeliveryLocation { get; set; }
+        public string Currency { get; set; }
+        public string PaymentMethod { get; set; }
+        public bool IsBreakable { get; set; }
+        public bool IsReplacement { get; set; }
+        public bool IsReturned { get; set; }
     }
 }
