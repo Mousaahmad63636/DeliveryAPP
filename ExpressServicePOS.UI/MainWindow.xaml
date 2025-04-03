@@ -244,68 +244,6 @@
                             </Button.Template>
                         </Button>
 
-                        <Button x:Name="btnReports" Content="التقارير" 
-                                Style="{StaticResource NavButtonStyle}" 
-                                Margin="0,5" Click="btnReports_Click">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" 
-                                            BorderThickness="{TemplateBinding BorderThickness}" 
-                                            CornerRadius="4">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <materialDesign:PackIcon Grid.Column="0" Kind="ChartBar" 
-                                                     Margin="5,0,10,0" VerticalAlignment="Center"/>
-                                            <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" 
-                                                      VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#2980b9"/>
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter Property="Background" Value="#1c6ea4"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-
-                        <Button x:Name="btnOrderLookup" Content="البحث عن طلب" 
-                                Style="{StaticResource NavButtonStyle}" 
-                                Margin="0,5" Click="btnOrderLookup_Click">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" 
-                                            BorderThickness="{TemplateBinding BorderThickness}" 
-                                            CornerRadius="4">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <materialDesign:PackIcon Grid.Column="0" Kind="Search" 
-                                                     Margin="5,0,10,0" VerticalAlignment="Center"/>
-                                            <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" 
-                                                      VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#2980b9"/>
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter Property="Background" Value="#1c6ea4"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-
                         <!-- New Import/Export Button -->
                         <Button x:Name="btnImportExport" Content="استيراد / تصدير" 
                                 Style="{StaticResource NavButtonStyle}" 

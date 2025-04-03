@@ -84,7 +84,6 @@ namespace ExpressServicePOS.UI
             services.AddTransient<CustomersPage>();
             services.AddTransient<OrdersPage>();
             services.AddTransient<NewOrderPage>();
-            services.AddTransient<ReportsPage>();
             services.AddTransient<SettingsPage>();
             services.AddTransient<ConnectionTestPage>();
             services.AddTransient<DriversPage>();

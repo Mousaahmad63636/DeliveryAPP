@@ -97,19 +97,10 @@ namespace ExpressServicePOS.UI
             MainFrame.Navigate(new DriversPage());
         }
 
-        private void btnReports_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame.Navigate(new ReportsPage());
-        }
 
         private void btnSettings_Click(object sender, RoutedEventArgs e)
         {
             MainFrame.Navigate(new SettingsPage());
-        }
-
-        private void btnOrderLookup_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame.Navigate(new OrderLookupPage());
         }
 
         private void btnImportExport_Click(object sender, RoutedEventArgs e)
