@@ -1,0 +1,81 @@
+﻿<Page x:Class="ExpressServicePOS.UI.Views.DriversPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      mc:Ignorable="d" 
+      d:DesignHeight="600" d:DesignWidth="800"
+      Title="إدارة السائقين"
+      FlowDirection="RightToLeft">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Page Header -->
+        <materialDesign:ColorZone Grid.Row="0" Mode="PrimaryMid" Padding="15" CornerRadius="5" Margin="20,20,20,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                <materialDesign:PackIcon Kind="TruckDelivery" Width="30" Height="30" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Text="إدارة السائقين" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button x:Name="btnAddNewDriver" Content="إضافة سائق جديد" 
+                        Style="{StaticResource MaterialDesignRaisedButton}" 
+                        Margin="20,0,0,0"
+                        Background="{DynamicResource PrimaryHueMidBrush}"
+                        Click="btnAddNewDriver_Click" />
+            </StackPanel>
+        </materialDesign:ColorZone>
+
+        <!-- Search Box -->
+        <Grid Grid.Row="1" Margin="20,15,20,15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" x:Name="txtSearch" 
+                     materialDesign:HintAssist.Hint="بحث عن سائق..."
+                     Margin="0,0,10,0" KeyUp="txtSearch_KeyUp"
+                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+            <Button Grid.Column="1" x:Name="btnSearch" Content="بحث" 
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Click="btnSearch_Click"/>
+        </Grid>
+
+        <!-- Drivers List -->
+        <materialDesign:Card Grid.Row="2" Margin="20">
+            <DataGrid x:Name="dgDrivers" AutoGenerateColumns="False" CanUserAddRows="False" 
+                      CanUserDeleteRows="False" IsReadOnly="True" SelectionMode="Single"
+                      MouseDoubleClick="dgDrivers_MouseDoubleClick" 
+                      Style="{StaticResource MaterialDesignDataGrid}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="الاسم" Binding="{Binding Name}" Width="150"/>
+                    <DataGridTextColumn Header="رقم الهاتف" Binding="{Binding Phone}" Width="120"/>
+                    <DataGridTextColumn Header="البريد الإلكتروني" Binding="{Binding Email}" Width="150"/>
+                    <DataGridTextColumn Header="نوع المركبة" Binding="{Binding VehicleType}" Width="120"/>
+                    <DataGridTextColumn Header="رقم اللوحة" Binding="{Binding VehiclePlateNumber}" Width="100"/>
+                    <DataGridTextColumn Header="المناطق" Binding="{Binding AssignedZones}" Width="150"/>
+                    <DataGridTextColumn Header="الحالة" Binding="{Binding IsActive, Converter={StaticResource BoolToActiveConverter}}" Width="80"/>
+                    <DataGridTemplateColumn Header="إجراءات" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="تعديل" 
+                                            Style="{StaticResource MaterialDesignOutlinedButton}"
+                                            Margin="0,0,5,0" Click="btnEdit_Click" Tag="{Binding Id}"/>
+                                    <Button Content="حذف" 
+                                            Background="Red" Foreground="White"
+                                            Style="{StaticResource MaterialDesignRaisedButton}"
+                                            Click="btnDelete_Click" Tag="{Binding Id}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </materialDesign:Card>
+    </Grid>
+</Page>

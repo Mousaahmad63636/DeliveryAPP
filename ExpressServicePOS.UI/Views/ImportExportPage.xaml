@@ -1,0 +1,139 @@
+﻿<Page x:Class="ExpressServicePOS.UI.Views.ImportExportPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      mc:Ignorable="d" 
+      d:DesignHeight="600" d:DesignWidth="800"
+      Title="استيراد وتصدير البيانات">
+
+    <Grid>
+        <StackPanel Margin="20">
+            <materialDesign:ColorZone Mode="PrimaryMid" Padding="15" CornerRadius="5" Margin="0,0,0,20">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="FileExport" Width="30" Height="30" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock Text="استيراد وتصدير البيانات" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </materialDesign:ColorZone>
+
+            <!-- Export Section -->
+            <materialDesign:Card Margin="0,0,0,20">
+                <StackPanel Margin="16">
+                    <TextBlock Text="تصدير البيانات" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Export Customers -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="تصدير بيانات العملاء:" VerticalAlignment="Center"/>
+                        <Button Grid.Row="0" Grid.Column="1" Content="تصدير إلى Excel" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnExportCustomersToExcel_Click"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="تصدير إلى CSV" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnExportCustomersToCSV_Click"/>
+
+                        <!-- Export Orders -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="تصدير بيانات الطلبات:" VerticalAlignment="Center"/>
+                        <Button Grid.Row="1" Grid.Column="1" Content="تصدير إلى Excel" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnExportOrdersToExcel_Click"/>
+                        <Button Grid.Row="1" Grid.Column="2" Content="تصدير إلى CSV" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnExportOrdersToCSV_Click"/>
+
+                        <!-- Export Drivers -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="تصدير بيانات السائقين:" VerticalAlignment="Center"/>
+                        <Button Grid.Row="2" Grid.Column="1" Content="تصدير إلى Excel" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnExportDriversToExcel_Click"/>
+                        <Button Grid.Row="2" Grid.Column="2" Content="تصدير إلى CSV" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnExportDriversToCSV_Click"/>
+                    </Grid>
+                </StackPanel>
+            </materialDesign:Card>
+
+            <!-- Import Section -->
+            <materialDesign:Card Margin="0,0,0,20">
+                <StackPanel Margin="16">
+                    <TextBlock Text="استيراد البيانات" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Import Customers -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="استيراد بيانات العملاء:" VerticalAlignment="Center"/>
+                        <Button Grid.Row="0" Grid.Column="1" Content="استيراد من Excel" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnImportCustomersFromExcel_Click"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="استيراد من CSV" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="5" Click="btnImportCustomersFromCSV_Click"/>
+
+                        <!-- Import warning text -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" 
+                                  Text="تنبيه: سوف يتم تحديث البيانات الموجودة وإضافة البيانات الجديدة. يرجى أخذ نسخة احتياطية قبل الاستيراد." 
+                                  TextWrapping="Wrap" Foreground="Red" 
+                                  Margin="0,10,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </materialDesign:Card>
+
+            <!-- Database Backup -->
+            <materialDesign:Card>
+                <StackPanel Margin="16">
+                    <TextBlock Text="النسخ الاحتياطي لقاعدة البيانات" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Backup Database -->
+                        <Button Grid.Row="0" Grid.Column="0" Content="إنشاء نسخة احتياطية" 
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{DynamicResource PrimaryHueMidBrush}"
+                                Margin="0,5,10,5" Click="btnCreateBackup_Click"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" 
+                                  Text="إنشاء نسخة احتياطية كاملة لقاعدة البيانات" 
+                                  VerticalAlignment="Center"/>
+
+                        <!-- Restore Database -->
+                        <Button Grid.Row="1" Grid.Column="0" Content="استعادة من نسخة احتياطية" 
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="Orange"
+                                Margin="0,5,10,5" Click="btnRestoreBackup_Click"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" 
+                                  Text="استعادة قاعدة البيانات من نسخة احتياطية سابقة" 
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </materialDesign:Card>
+        </StackPanel>
+    </Grid>
+</Page>

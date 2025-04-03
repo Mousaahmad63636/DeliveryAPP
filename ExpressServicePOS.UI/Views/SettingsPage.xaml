@@ -1,0 +1,199 @@
+﻿<Page x:Class="ExpressServicePOS.UI.Views.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      mc:Ignorable="d" 
+      d:DesignHeight="600" d:DesignWidth="800"
+      Title="الإعدادات">
+
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                <materialDesign:ColorZone Mode="PrimaryMid" Padding="15" CornerRadius="5" Margin="0,0,0,20">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Settings" Width="30" Height="30" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="إعدادات النظام" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </materialDesign:ColorZone>
+
+                <!-- Company Profile Settings -->
+                <materialDesign:Card Margin="0,0,0,20">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="معلومات الشركة" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="اسم الشركة:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtCompanyName" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="العنوان:" VerticalAlignment="Top" Margin="0,15,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtCompanyAddress" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     TextWrapping="Wrap" Margin="0,10,0,0" Height="60"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="الهاتف:" VerticalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtCompanyPhone" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Margin="0,10,0,0"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="البريد الإلكتروني:" VerticalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtCompanyEmail" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Margin="0,10,0,0"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="الموقع الإلكتروني:" VerticalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtCompanyWebsite" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Margin="0,10,0,0"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="الرقم الضريبي:" VerticalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtCompanyTaxNumber" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Margin="0,10,0,0"/>
+
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="نص الإيصال:" VerticalAlignment="Top" Margin="0,15,0,0"/>
+                            <TextBox Grid.Row="6" Grid.Column="1" x:Name="txtReceiptFooter" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     TextWrapping="Wrap" Margin="0,10,0,0" Height="60"
+                                     Text="شكراً لاختياركم خدمة إكسبرس"/>
+                        </Grid>
+
+                        <Button Content="حفظ معلومات الشركة" 
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{DynamicResource PrimaryHueMidBrush}"
+                                HorizontalAlignment="Center" Margin="0,15,0,0"
+                                Click="btnSaveCompanyProfile_Click"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Currency Settings -->
+                <materialDesign:Card Margin="0,0,0,20">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="إعدادات العملة" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <CheckBox x:Name="chkEnableMultipleCurrencies" Content="تمكين استخدام عملات متعددة" 
+                                  IsChecked="True" Margin="0,0,0,10"
+                                  Style="{StaticResource MaterialDesignCheckBox}"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="تمكين الدولار الأمريكي:" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Row="0" Grid.Column="1" x:Name="chkEnableUSD" IsChecked="True" 
+                                      Style="{StaticResource MaterialDesignCheckBox}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="تمكين الليرة اللبنانية:" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                            <CheckBox Grid.Row="1" Grid.Column="1" x:Name="chkEnableLBP" IsChecked="True" 
+                                      Style="{StaticResource MaterialDesignCheckBox}"
+                                      Margin="0,10,0,0"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="سعر الصرف:" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox x:Name="txtExchangeRate" Text="90000" Width="150" 
+                                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                                <TextBlock Text="ل.ل. = 1 دولار أمريكي" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="العملة الافتراضية:" VerticalAlignment="Center" Margin="0,15,0,0"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1" x:Name="cmbDefaultCurrency" Width="150" 
+                                      HorizontalAlignment="Left" Margin="0,10,0,0"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                                <ComboBoxItem Content="USD" IsSelected="True"/>
+                                <ComboBoxItem Content="LBP"/>
+                            </ComboBox>
+                        </Grid>
+
+                        <Button Content="حفظ إعدادات العملة" 
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{DynamicResource PrimaryHueMidBrush}"
+                                HorizontalAlignment="Center" Margin="0,15,0,0"
+                                Click="btnSaveCurrencySettings_Click"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Database Settings -->
+                <materialDesign:Card Margin="0,0,0,20">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="إعدادات قاعدة البيانات" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="اسم السيرفر:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtServerName" Text=".\posserver"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="اسم قاعدة البيانات:" VerticalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtDatabaseName" Text="ExpressServicePOS" 
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Margin="0,10,0,0"/>
+                        </Grid>
+
+                        <Button Content="حفظ إعدادات قاعدة البيانات" 
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{DynamicResource PrimaryHueMidBrush}"
+                                HorizontalAlignment="Center" Margin="0,15,0,0"
+                                Click="btnSaveDatabaseSettings_Click"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Other Settings -->
+                <materialDesign:Card>
+                    <StackPanel Margin="16">
+                        <TextBlock Text="إعدادات أخرى" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="رسوم التوصيل الافتراضية:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" x:Name="txtDefaultDeliveryFee" Text="30.00"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                        </Grid>
+
+                        <Button Content="حفظ الإعدادات" 
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{DynamicResource PrimaryHueMidBrush}"
+                                HorizontalAlignment="Center" Margin="0,15,0,0"
+                                Click="btnSaveSettings_Click"/>
+                    </StackPanel>
+                </materialDesign:Card>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

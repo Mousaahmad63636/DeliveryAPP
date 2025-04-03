@@ -1,0 +1,246 @@
+﻿<!-- File: ExpressServicePOS.UI.Views/NewOrderPage.xaml -->
+<Page x:Class="ExpressServicePOS.UI.Views.NewOrderPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      mc:Ignorable="d" 
+      d:DesignHeight="600" d:DesignWidth="800"
+      Title="طلب جديد">
+
+    <ScrollViewer>
+        <StackPanel Margin="20">
+            <TextBlock Text="طلب جديد" FontSize="24" FontWeight="Bold"/>
+
+            <!-- Order Basic Information -->
+            <GroupBox Header="معلومات الطلب الأساسية" Margin="0,20,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 1 -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="رقم الطلب"/>
+                        <TextBox x:Name="txtOrderNumber" IsReadOnly="True" Margin="0,5,0,10"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="تاريخ الطلب"/>
+                        <DatePicker x:Name="dtpOrderDate" Margin="0,5,0,10"/>
+                    </StackPanel>
+
+                    <!-- Row 2 -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="وصف الطلب"/>
+                        <TextBox x:Name="txtOrderDescription" Margin="0,5,0,10"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="حالة الطلب"/>
+                        <ComboBox x:Name="cmbStatus" Margin="0,5,0,10">
+                            <ComboBoxItem Content="قيد الانتظار" IsSelected="True"/>
+                            <ComboBoxItem Content="تم استلام الطلب"/>
+                            <ComboBoxItem Content="قيد التوصيل"/>
+                            <ComboBoxItem Content="تم التسليم"/>
+                            <ComboBoxItem Content="تسليم جزئي"/>
+                            <ComboBoxItem Content="فشل التوصيل"/>
+                            <ComboBoxItem Content="ملغى"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Row 3 -->
+                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                        <TextBlock Text="ملاحظات"/>
+                        <TextBox x:Name="txtNotes" TextWrapping="Wrap" AcceptsReturn="True" Height="60" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    
+                </Grid>
+            </GroupBox>
+
+            <!-- Customer Information -->
+            <GroupBox Header="معلومات العميل" Margin="0,10,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox x:Name="cmbCustomers" DisplayMemberPath="Name" Margin="0,0,5,0"
+                              SelectionChanged="cmbCustomers_SelectionChanged"/>
+                    <Button Grid.Column="1" Content="عميل جديد" Width="100" Click="btnNewCustomer_Click"/>
+                </Grid>
+            </GroupBox>
+
+            <!-- Receipt Information Section -->
+            <GroupBox Header="معلومات الإيصال" Margin="0,10,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 1 -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="المرسل"/>
+                        <TextBox x:Name="txtSenderName" Margin="0,5,0,10"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="المرسل إليه"/>
+                        <TextBox x:Name="txtRecipientName" Margin="0,5,0,10"/>
+                    </StackPanel>
+
+                    <!-- Row 2 -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="هاتف المرسل"/>
+                        <TextBox x:Name="txtSenderPhone" Margin="0,5,0,10"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="هاتف المرسل إليه"/>
+                        <TextBox x:Name="txtRecipientPhone" Margin="0,5,0,10"/>
+                    </StackPanel>
+
+                    <!-- Row 3 -->
+                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="موقع الاستلام"/>
+                        <TextBox x:Name="txtPickupLocation" Margin="0,5,0,10"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="موقع التسليم"/>
+                        <TextBox x:Name="txtDeliveryLocation" Margin="0,5,0,10"/>
+                    </StackPanel>
+
+                    <!-- Row 4 -->
+                    <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="طريقة الدفع"/>
+                        <ComboBox x:Name="cmbPaymentMethod" Margin="0,5,0,10">
+                            <ComboBoxItem Content="نقدي" IsSelected="True"/>
+                            <ComboBoxItem Content="بطاقة ائتمان"/>
+                            <ComboBoxItem Content="حوالة بنكية"/>
+                            <ComboBoxItem Content="تحويل إلكتروني"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Row="3" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="نوع الطلب"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <CheckBox x:Name="chkBreakable" Content="قابل للكسر" Margin="0,0,15,0"/>
+                            <CheckBox x:Name="chkReplacement" Content="بدل" Margin="0,0,15,0"/>
+                            <CheckBox x:Name="chkReturned" Content="مرتجع" Margin="0,0,15,0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Row 5 -->
+                    <Button Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Content="معاينة الإيصال" 
+                Height="30" Margin="0,10,0,0" Click="btnPreviewReceipt_Click"
+                Background="#2ecc71" Foreground="White">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="3"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+            </GroupBox>
+
+            <!-- Driver Information -->
+            <GroupBox Header="معلومات السائق" Margin="0,10,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="اسم السائق"/>
+                        <TextBox x:Name="txtDriverName" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="اختر سائق"/>
+                        <ComboBox x:Name="cmbDrivers" DisplayMemberPath="Name" 
+                                  Margin="0,5,0,0" SelectionChanged="cmbDrivers_SelectionChanged"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- Pricing Information -->
+            <GroupBox Header="معلومات التسعير" Margin="0,10,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 1 -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="السعر"/>
+                        <TextBox x:Name="txtPrice" Margin="0,5,0,10" TextChanged="txtPrice_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="رسوم التوصيل"/>
+                        <TextBox x:Name="txtDeliveryFee" Margin="0,5,0,10" TextChanged="txtDeliveryFee_TextChanged"/>
+                    </StackPanel>
+
+                    <!-- Row 2 -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,5,0">
+                        <TextBlock Text="العملة"/>
+                        <ComboBox x:Name="cmbCurrency" Margin="0,5,0,0">
+                            <ComboBoxItem Content="USD" IsSelected="True"/>
+                            <ComboBoxItem Content="LBP"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="5,0,0,0">
+                        <TextBlock Text="المجموع"/>
+                        <TextBox x:Name="txtTotal" IsReadOnly="True" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- Payment Status -->
+            <CheckBox x:Name="chkIsPaid" Content="تم الدفع" Margin="0,10,0,0"/>
+
+            <!-- Action Buttons -->
+            <Grid Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="حفظ" Width="150" Height="40" 
+                        Background="#27ae60" Foreground="White" Margin="0,0,5,0"
+                        Click="btnSave_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="5"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button Grid.Column="1" Content="إلغاء" Width="150" Height="40"
+                        Background="#e74c3c" Foreground="White" Margin="5,0,0,0"
+                        Click="btnCancel_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="5"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,92 @@
+- .gitignore
+- ExpressServicePOS.sln
+
+ExpressServicePOS.Core
+- ExpressServicePOS.Core.csproj
+
+ExpressServicePOS.Core\Models
+- CompanyProfile.cs
+- CurrencySetting.cs
+- Customer.cs
+- Driver.cs
+- Order.cs
+- ReceiptTemplate.cs
+
+ExpressServicePOS.Core\ViewModel
+- CustomerStatementViewModel.cs
+
+ExpressServicePOS.Data
+- DatabaseInitializer.cs
+- DbInitializer.cs
+- DesignTimeDbContextFactory.cs
+- ExpressServicePOS.Data.csproj
+
+ExpressServicePOS.Data\App_Data
+
+ExpressServicePOS.Data\Context
+- AppDbContext.cs
+
+ExpressServicePOS.Data\Migrations
+- 20250402192135_InitialCreate.cs
+- 20250402192135_InitialCreate.Designer.cs
+- AppDbContextModelSnapshot.cs
+
+ExpressServicePOS.Data\Services
+- DatabaseService.cs
+
+ExpressServicePOS.Infrastructure
+- ExpressServicePOS.Infrastructure.csproj
+
+ExpressServicePOS.Infrastructure\Configuration
+- ConnectionConfiguration.cs
+
+ExpressServicePOS.Infrastructure\Services
+- BackupService.cs
+- CurrencyService.cs
+- DatabaseTestService.cs
+- ImportExportService.cs
+- PrintService.cs
+- ReceiptService.cs
+- ReportService.cs
+
+ExpressServicePOS.UI
+- App.config
+- App.xaml
+- App.xaml.cs
+- appsettings.json
+- AssemblyInfo.cs
+- ExpressServicePOS.UI.csproj
+- ExpressServicePOS.UI.csproj.user
+- MainWindow.xaml
+- MainWindow.xaml.cs
+
+ExpressServicePOS.UI\App_Data
+
+ExpressServicePOS.UI\Converters
+- BoolToActiveConverter.cs
+
+ExpressServicePOS.UI\Views
+- ConnectionTestPage.xaml
+- ConnectionTestPage.xaml.cs
+- CustomerDialog.xaml
+- CustomerDialog.xaml.cs
+- CustomersPage.xaml
+- CustomersPage.xaml.cs
+- DashboardPage.xaml
+- DashboardPage.xaml.cs
+- DriverDialog.xaml
+- DriverDialog.xaml.cs
+- DriversPage.xaml
+- DriversPage.xaml.cs
+- ImportExportPage.xaml
+- ImportExportPage.xaml.cs
+- NewOrderPage.xaml
+- NewOrderPage.xaml.cs
+- OrderLookupPage.xaml
+- OrderLookupPage.xaml.cs
+- OrdersPage.xaml
+- OrdersPage.xaml.cs
+- ReportsPage.xaml
+- ReportsPage.xaml.cs
+- SettingsPage.xaml
+- SettingsPage.xaml.cs

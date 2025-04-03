@@ -1,0 +1,87 @@
+﻿<Window x:Class="ExpressServicePOS.UI.Views.DriverDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="بيانات السائق" Height="500" Width="550"
+        FlowDirection="RightToLeft" WindowStartupLocation="CenterOwner"
+        Style="{StaticResource MaterialDesignWindow}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="بيانات السائق" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+
+        <!-- Driver Form -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Name -->
+                <TextBox x:Name="txtName" Margin="0,10,0,0"
+                         materialDesign:HintAssist.Hint="اسم السائق *"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                <!-- Phone -->
+                <TextBox x:Name="txtPhone" Margin="0,10,0,0"
+                         materialDesign:HintAssist.Hint="رقم الهاتف *"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                <!-- Email -->
+                <TextBox x:Name="txtEmail" Margin="0,10,0,0"
+                         materialDesign:HintAssist.Hint="البريد الإلكتروني"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                <!-- Vehicle Type -->
+                <TextBox x:Name="txtVehicleType" Margin="0,10,0,0"
+                         materialDesign:HintAssist.Hint="نوع المركبة"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                <!-- Vehicle Plate Number -->
+                <TextBox x:Name="txtVehiclePlateNumber" Margin="0,10,0,0"
+                         materialDesign:HintAssist.Hint="رقم لوحة المركبة"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                <!-- Assigned Zones -->
+                <TextBox x:Name="txtAssignedZones" Margin="0,10,0,0"
+                         materialDesign:HintAssist.Hint="المناطق المُكلّف بها"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+
+                <!-- Active Status -->
+                <CheckBox x:Name="chkIsActive" Margin="0,15,0,0"
+                          Content="السائق نشط حالياً"
+                          IsChecked="True"/>
+
+                <!-- Date Hired -->
+                <DatePicker x:Name="dpDateHired" Margin="0,15,0,0"
+                            materialDesign:HintAssist.Hint="تاريخ التوظيف"
+                            Style="{StaticResource MaterialDesignOutlinedDatePicker}"/>
+
+                <!-- Notes -->
+                <TextBox x:Name="txtNotes" Margin="0,15,0,0"
+                         materialDesign:HintAssist.Hint="ملاحظات"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         TextWrapping="Wrap" AcceptsReturn="True"
+                         Height="80" VerticalScrollBarVisibility="Auto"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
+            <Button x:Name="btnSave" Content="حفظ" Click="btnSave_Click"
+                    Width="120" Height="40" Margin="5"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Background="{DynamicResource PrimaryHueMidBrush}"/>
+
+            <Button x:Name="btnCancel" Content="إلغاء" Click="btnCancel_Click"
+                    Width="120" Height="40" Margin="5"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>
