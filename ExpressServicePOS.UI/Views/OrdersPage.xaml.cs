@@ -262,11 +262,26 @@ namespace ExpressServicePOS.UI.Views
             try
             {
                 var document = CreateTablePrintDocument();
+
                 PrintDialog printDialog = new PrintDialog();
+
+                // Force landscape orientation by setting the print ticket
+                if (printDialog.PrintTicket != null)
+                {
+                    printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Landscape;
+                }
+
                 if (printDialog.ShowDialog() == true)
                 {
+                    // Apply pagination settings
+                    document.PageHeight = printDialog.PrintableAreaHeight;
+                    document.PageWidth = printDialog.PrintableAreaWidth;
+
+                    // Print with appropriate description
                     IDocumentPaginatorSource paginatorSource = document;
-                    printDialog.PrintDocument(paginatorSource.DocumentPaginator, "Orders Table Print");
+                    printDialog.PrintDocument(
+                        paginatorSource.DocumentPaginator,
+                        "تقرير الطلبات - " + DateTime.Now.ToString("yyyy-MM-dd"));
                 }
             }
             catch (Exception ex)
@@ -281,128 +296,158 @@ namespace ExpressServicePOS.UI.Views
             var document = new FlowDocument
             {
                 FontFamily = new FontFamily("Arial"),
-                FontSize = 12,
-                PagePadding = new Thickness(50),
-                FlowDirection = FlowDirection.RightToLeft
+                FontSize = 10, // Reduced font size
+                PagePadding = new Thickness(20), // Reduced padding
+                FlowDirection = FlowDirection.RightToLeft,
+                ColumnWidth = double.MaxValue,
+                // Set to landscape orientation
+                PageWidth = 11.69 * 96, // A4 height (landscape) in pixels
+                PageHeight = 8.27 * 96  // A4 width (landscape) in pixels
             };
 
-            var headerPara = new Paragraph(new Run("تقرير الطلبات"))
+            // Add company header
+            var headerPara = new Paragraph(new Run("خدمة اكسبرس - تقرير الطلبات"))
             {
-                FontSize = 20,
+                FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 20)
+                Margin = new Thickness(0, 0, 0, 10)
             };
             document.Blocks.Add(headerPara);
 
-            var datePara = new Paragraph(new Run($"تاريخ الطباعة: {DateTime.Now:yyyy-MM-dd HH:mm}"))
+            // Add date and time of printing
+            var datePara = new Paragraph(new Run($"تاريخ الطباعة: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"))
             {
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 20)
+                Margin = new Thickness(0, 0, 0, 10)
             };
             document.Blocks.Add(datePara);
 
-            var summaryPara = new Paragraph();
+            // Add summary section with horizontal layout
+            var summaryPara = new Paragraph
+            {
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(0, 0, 0, 5),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
             summaryPara.Inlines.Add(new Run("إجمالي السعر: ") { FontWeight = FontWeights.Bold });
             summaryPara.Inlines.Add(new Run(txtTotalPrice.Text));
-            summaryPara.Inlines.Add(new LineBreak());
+            summaryPara.Inlines.Add(new Run("   |   "));
             summaryPara.Inlines.Add(new Run("إجمالي الربح: ") { FontWeight = FontWeights.Bold });
             summaryPara.Inlines.Add(new Run(txtTotalProfit.Text));
-            summaryPara.Inlines.Add(new LineBreak());
+            summaryPara.Inlines.Add(new Run("   |   "));
             summaryPara.Inlines.Add(new Run("الإجمالي الكلي: ") { FontWeight = FontWeights.Bold });
             summaryPara.Inlines.Add(new Run(txtGrandTotal.Text));
-            summaryPara.Margin = new Thickness(0, 0, 0, 20);
+
             document.Blocks.Add(summaryPara);
 
-            var table = new Table();
-
-            for (int i = 0; i < 10; i++)
+            // Create table with optimized column widths
+            var table = new Table
             {
-                table.Columns.Add(new TableColumn());
-            }
+                CellSpacing = 0,
+                BorderBrush = Brushes.Black,
+                BorderThickness = new Thickness(0.5)
+            };
 
-            table.BorderBrush = Brushes.Black;
-            table.BorderThickness = new Thickness(1);
-            table.CellSpacing = 0;
+            // Define columns with optimized widths for landscape mode
+            table.Columns.Add(new TableColumn { Width = new GridLength(40) });   // معرف - ID
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // رقم الطلب - Order #
+            table.Columns.Add(new TableColumn { Width = new GridLength(110) });  // اسم العميل - Customer
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // رقم الهاتف - Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(140) });  // العنوان - Address
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // تاريخ الطلب - Order Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // تاريخ الدفع - Payment Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // السعر - Price
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // الربح - Profit
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // الإجمالي - Total
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // الحالة - Status
 
+            // Create header row
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
 
+            headerRow.Cells.Add(CreateTableCell("معرف", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("اسم العميل", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("رقم الهاتف", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("العنوان", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("تاريخ الطلب", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("تاريخ الدفع", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("المبلغ", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("السعر", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الربح", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الإجمالي", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("السائق", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("رقم السيارة", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("الحالة", FontWeights.Bold));
 
             var headerRowGroup = new TableRowGroup();
             headerRowGroup.Rows.Add(headerRow);
             table.RowGroups.Add(headerRowGroup);
 
+            // Add data rows
             var dataRowGroup = new TableRowGroup();
-
             IEnumerable<OrderViewModel> itemsSource = dgOrders.ItemsSource as IEnumerable<OrderViewModel>;
+
             if (itemsSource != null)
             {
+                int rowIndex = 0;
                 foreach (var order in itemsSource)
                 {
                     var row = new TableRow();
 
+                    if (rowIndex % 2 == 1)
+                    {
+                        row.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
+                    }
+
+                    row.Cells.Add(CreateTableCell(order.Id.ToString()));
                     row.Cells.Add(CreateTableCell(order.OrderNumber));
                     row.Cells.Add(CreateTableCell(order.CustomerName));
+                    row.Cells.Add(CreateTableCell(order.CustomerPhone));
                     row.Cells.Add(CreateTableCell(order.CustomerAddress));
                     row.Cells.Add(CreateTableCell(order.OrderDate.ToString("yyyy-MM-dd")));
                     row.Cells.Add(CreateTableCell(order.DatePaid.HasValue ? order.DatePaid.Value.ToString("yyyy-MM-dd") : "-"));
                     row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.DeliveryFee.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
-                    row.Cells.Add(CreateTableCell(order.DriverName));
-                    row.Cells.Add(CreateTableCell(order.DriverVehicleNumber));
+                    row.Cells.Add(CreateTableCell(order.StatusText));
 
                     dataRowGroup.Rows.Add(row);
+                    rowIndex++;
                 }
             }
 
             table.RowGroups.Add(dataRowGroup);
 
-            var summaryRow = new TableRow();
-            summaryRow.Background = Brushes.LightGray;
-
-            var totalLabelCell = new TableCell();
-            totalLabelCell.ColumnSpan = 5;
-            var totalLabelPara = new Paragraph(new Run("الإجمالي:"));
-            totalLabelPara.FontWeight = FontWeights.Bold;
-            totalLabelPara.TextAlignment = TextAlignment.Right;
-            totalLabelCell.Blocks.Add(totalLabelPara);
-            summaryRow.Cells.Add(totalLabelCell);
-
-            summaryRow.Cells.Add(CreateTableCell(txtTotalPrice.Text, FontWeights.Bold));
-            summaryRow.Cells.Add(CreateTableCell(txtTotalProfit.Text, FontWeights.Bold));
-            summaryRow.Cells.Add(CreateTableCell(txtGrandTotal.Text, FontWeights.Bold));
-
-            summaryRow.Cells.Add(new TableCell(new Paragraph(new Run(""))));
-            summaryRow.Cells.Add(new TableCell(new Paragraph(new Run(""))));
-
-            var summaryRowGroup = new TableRowGroup();
-            summaryRowGroup.Rows.Add(summaryRow);
-            table.RowGroups.Add(summaryRowGroup);
-
+            // Add the table to the document
             document.Blocks.Add(table);
+
+            // Add footer
+            var footerPara = new Paragraph(new Run("جميع الحقوق محفوظة لخدمة اكسبرس © " + DateTime.Now.Year))
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 10, 0, 0),
+                FontStyle = FontStyles.Italic,
+                FontSize = 9
+            };
+            document.Blocks.Add(footerPara);
 
             return document;
         }
 
         private TableCell CreateTableCell(string text, FontWeight fontWeight = default)
         {
-            var paragraph = new Paragraph(new Run(text));
+            var paragraph = new Paragraph(new Run(text ?? "-"))
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(2) // Reduced margin
+            };
+
             if (fontWeight != default)
             {
                 paragraph.FontWeight = fontWeight;
             }
+
             return new TableCell(paragraph);
         }
     }
