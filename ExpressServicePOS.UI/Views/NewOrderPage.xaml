@@ -70,11 +70,13 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <ComboBox x:Name="cmbCustomers" DisplayMemberPath="Name" Margin="0,0,5,0"
-                              SelectionChanged="cmbCustomers_SelectionChanged"/>
-                    <Button Grid.Column="1" Content="عميل جديد" Width="100" Click="btnNewCustomer_Click"/>
+                  SelectionChanged="cmbCustomers_SelectionChanged"/>
+                    <Button Grid.Column="1" Content="عميل جديد" Width="100" Click="btnNewCustomer_Click" Margin="5,0,5,0"/>
+                    <Button Grid.Column="2" Content="البحث" Width="80" Click="btnSearchCustomer_Click"/>
                 </Grid>
             </GroupBox>
 
@@ -158,19 +160,41 @@
             <!-- Driver Information -->
             <GroupBox Header="معلومات السائق" Margin="0,10,0,0">
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                        <TextBlock Text="اسم السائق"/>
-                        <TextBox x:Name="txtDriverName" Margin="0,5,0,0"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                        <TextBlock Text="اختر سائق"/>
-                        <ComboBox x:Name="cmbDrivers" DisplayMemberPath="Name" 
-                                  Margin="0,5,0,0" SelectionChanged="cmbDrivers_SelectionChanged"/>
-                    </StackPanel>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 1: Driver Name -->
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="اسم السائق"/>
+                            <TextBox x:Name="txtDriverName" Margin="0,5,5,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Row 2: Driver Selection -->
+                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="اختر سائق"/>
+                            <ComboBox x:Name="cmbDrivers" DisplayMemberPath="Name" 
+                          Margin="0,5,5,0" SelectionChanged="cmbDrivers_SelectionChanged"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="سائق جديد" Width="100" 
+                    Click="btnNewDriver_Click" Margin="5,20,5,0"/>
+                        <Button Grid.Column="2" Content="البحث" Width="80" 
+                    Click="btnSearchDriver_Click" Margin="0,20,0,0"/>
+                    </Grid>
                 </Grid>
             </GroupBox>
 
