@@ -14,30 +14,24 @@ namespace ExpressServicePOS.UI.Views
     public partial class CustomersPage : Page
     {
         private readonly IServiceScope _serviceScope;
-        private readonly AppDbContext _dbContext;
+        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
         private readonly ILogger<CustomersPage> _logger;
 
         public CustomersPage()
         {
             InitializeComponent();
 
-            // Create a new service scope
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
-
-            // Resolve dependencies from the scope
-            _dbContext = _serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<CustomersPage>>();
 
-            // Load customers
             LoadCustomers();
 
-            // Register the Unloaded event to dispose resources
             Unloaded += CustomersPage_Unloaded;
         }
 
         private void CustomersPage_Unloaded(object sender, RoutedEventArgs e)
         {
-            // Dispose the service scope when the page is unloaded
             _serviceScope?.Dispose();
         }
 
@@ -45,8 +39,11 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var customers = await _dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
-                dgCustomers.ItemsSource = customers;
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var customers = await dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
+                    dgCustomers.ItemsSource = customers;
+                }
             }
             catch (Exception ex)
             {
@@ -62,9 +59,12 @@ namespace ExpressServicePOS.UI.Views
             {
                 try
                 {
-                    _dbContext.Customers.Add(dialog.Customer);
-                    _dbContext.SaveChanges();
-                    LoadCustomers();
+                    using (var dbContext = _dbContextFactory.CreateDbContext())
+                    {
+                        dbContext.Customers.Add(dialog.Customer);
+                        dbContext.SaveChanges();
+                        LoadCustomers();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -93,20 +93,24 @@ namespace ExpressServicePOS.UI.Views
 
             try
             {
-                if (string.IsNullOrEmpty(searchTerm))
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    LoadCustomers();
-                }
-                else
-                {
-                    var customers = await _dbContext.Customers
-                        .Where(c => c.Name.Contains(searchTerm) ||
-                               c.Phone.Contains(searchTerm) ||
-                               c.Address.Contains(searchTerm))
-                        .OrderBy(c => c.Name)
-                        .ToListAsync();
+                    if (string.IsNullOrEmpty(searchTerm))
+                    {
+                        var customers = await dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
+                        dgCustomers.ItemsSource = customers;
+                    }
+                    else
+                    {
+                        var customers = await dbContext.Customers
+                            .Where(c => c.Name.Contains(searchTerm) ||
+                                   c.Phone.Contains(searchTerm) ||
+                                   c.Address.Contains(searchTerm))
+                            .OrderBy(c => c.Name)
+                            .ToListAsync();
 
-                    dgCustomers.ItemsSource = customers;
+                        dgCustomers.ItemsSource = customers;
+                    }
                 }
             }
             catch (Exception ex)
@@ -132,22 +136,25 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private void EditCustomer(int customerId)
+        private async void EditCustomer(int customerId)
         {
             try
             {
-                var customer = _dbContext.Customers.Find(customerId);
-                if (customer != null)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    var dialog = new CustomerDialog();
-                    dialog.Customer = customer;
-                    dialog.PopulateFields();
-
-                    if (dialog.ShowDialog() == true)
+                    var customer = await dbContext.Customers.FindAsync(customerId);
+                    if (customer != null)
                     {
-                        _dbContext.Entry(customer).State = EntityState.Modified;
-                        _dbContext.SaveChanges();
-                        LoadCustomers();
+                        var dialog = new CustomerDialog();
+                        dialog.Customer = customer;
+                        dialog.PopulateFields();
+
+                        if (dialog.ShowDialog() == true)
+                        {
+                            dbContext.Entry(customer).State = EntityState.Modified;
+                            await dbContext.SaveChangesAsync();
+                            LoadCustomers();
+                        }
                     }
                 }
             }
@@ -162,34 +169,37 @@ namespace ExpressServicePOS.UI.Views
         {
             if (sender is Button button && button.Tag is int customerId)
             {
-                // Check if customer has orders
-                var hasOrders = await _dbContext.Orders.AnyAsync(o => o.CustomerId == customerId);
-                if (hasOrders)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    MessageBox.Show("لا يمكن حذف هذا العميل لأنه مرتبط بطلبات.", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Confirm deletion
-                var result = MessageBox.Show("هل أنت متأكد من حذف هذا العميل؟", "تأكيد الحذف",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    try
+                    // Check if customer has orders
+                    var hasOrders = await dbContext.Orders.AnyAsync(o => o.CustomerId == customerId);
+                    if (hasOrders)
                     {
-                        var customer = await _dbContext.Customers.FindAsync(customerId);
-                        if (customer != null)
-                        {
-                            _dbContext.Customers.Remove(customer);
-                            await _dbContext.SaveChangesAsync();
-                            LoadCustomers();
-                        }
+                        MessageBox.Show("لا يمكن حذف هذا العميل لأنه مرتبط بطلبات.", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
                     }
-                    catch (Exception ex)
+
+                    // Confirm deletion
+                    var result = MessageBox.Show("هل أنت متأكد من حذف هذا العميل؟", "تأكيد الحذف",
+                        MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
                     {
-                        _logger?.LogError(ex, "Error deleting customer");
-                        MessageBox.Show($"حدث خطأ أثناء حذف العميل: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        try
+                        {
+                            var customer = await dbContext.Customers.FindAsync(customerId);
+                            if (customer != null)
+                            {
+                                dbContext.Customers.Remove(customer);
+                                await dbContext.SaveChangesAsync();
+                                LoadCustomers();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogError(ex, "Error deleting customer");
+                            MessageBox.Show($"حدث خطأ أثناء حذف العميل: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
                     }
                 }
             }

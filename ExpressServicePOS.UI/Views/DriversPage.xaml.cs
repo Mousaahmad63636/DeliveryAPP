@@ -21,23 +21,16 @@ namespace ExpressServicePOS.UI.Views
         {
             InitializeComponent();
 
-            // Create a new service scope
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
-
-            // Resolve dependencies from the scope
             _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<DriversPage>>();
 
-            // Load drivers
             LoadDrivers();
-
-            // Register the Unloaded event to dispose resources
             Unloaded += DriversPage_Unloaded;
         }
 
         private void DriversPage_Unloaded(object sender, RoutedEventArgs e)
         {
-            // Dispose the service scope when the page is unloaded
             _serviceScope?.Dispose();
         }
 

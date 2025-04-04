@@ -13,7 +13,7 @@ namespace ExpressServicePOS.UI.Views
     {
         private readonly Order _order;
         private readonly IServiceScope _serviceScope;
-        private readonly AppDbContext _dbContext;
+        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
         private Customer _selectedCustomer;
         private Driver _selectedDriver;
 
@@ -23,18 +23,13 @@ namespace ExpressServicePOS.UI.Views
 
             _order = order ?? throw new ArgumentNullException(nameof(order));
 
-            // Create a service scope to access the database
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
-            _dbContext = _serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
-            // Load data
             LoadCustomers();
             LoadDrivers();
-
-            // Set initial field values
             PopulateFields();
 
-            // Register unload event
             Closed += (s, e) => _serviceScope.Dispose();
         }
 
@@ -42,10 +37,13 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var customers = await _dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
-                cmbCustomers.ItemsSource = customers;
-                cmbCustomers.SelectedItem = customers.FirstOrDefault(c => c.Id == _order.CustomerId);
-                _selectedCustomer = _order.Customer;
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var customers = await dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
+                    cmbCustomers.ItemsSource = customers;
+                    cmbCustomers.SelectedItem = customers.FirstOrDefault(c => c.Id == _order.CustomerId);
+                    _selectedCustomer = _order.Customer;
+                }
             }
             catch (Exception ex)
             {
@@ -57,10 +55,13 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var drivers = await _dbContext.Drivers.Where(d => d.IsActive).OrderBy(d => d.Name).ToListAsync();
-                cmbDrivers.ItemsSource = drivers;
-                cmbDrivers.SelectedItem = drivers.FirstOrDefault(d => d.Id == _order.DriverId);
-                _selectedDriver = _order.Driver;
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var drivers = await dbContext.Drivers.Where(d => d.IsActive).OrderBy(d => d.Name).ToListAsync();
+                    cmbDrivers.ItemsSource = drivers;
+                    cmbDrivers.SelectedItem = drivers.FirstOrDefault(d => d.Id == _order.DriverId);
+                    _selectedDriver = _order.Driver;
+                }
             }
             catch (Exception ex)
             {
@@ -70,12 +71,10 @@ namespace ExpressServicePOS.UI.Views
 
         private void PopulateFields()
         {
-            // Basic information
             txtOrderNumber.Text = _order.OrderNumber;
             dtpOrderDate.SelectedDate = _order.OrderDate;
             txtOrderDescription.Text = _order.OrderDescription;
 
-            // Select status in combobox
             switch (_order.DeliveryStatus)
             {
                 case DeliveryStatus.Pending:
@@ -105,24 +104,17 @@ namespace ExpressServicePOS.UI.Views
             }
 
             txtNotes.Text = _order.Notes;
-
-            // Driver information
             txtDriverName.Text = _order.DriverName;
-
-            // Receipt information
             txtSenderName.Text = _order.SenderName;
             txtSenderPhone.Text = _order.SenderPhone;
             txtRecipientName.Text = _order.RecipientName;
             txtRecipientPhone.Text = _order.RecipientPhone;
             txtPickupLocation.Text = _order.PickupLocation;
             txtDeliveryLocation.Text = _order.DeliveryLocation;
-
-            // Pricing information
             txtPrice.Text = _order.Price.ToString("N2");
             txtDeliveryFee.Text = _order.DeliveryFee.ToString("N2");
             txtTotal.Text = _order.TotalPrice.ToString("N2");
 
-            // Select currency in combobox
             if (_order.Currency == "USD")
                 cmbCurrency.SelectedIndex = 0;
             else if (_order.Currency == "LBP")
@@ -130,21 +122,20 @@ namespace ExpressServicePOS.UI.Views
             else
                 cmbCurrency.SelectedIndex = 0;
 
-            // Payment status
             chkIsPaid.IsChecked = _order.IsPaid;
         }
 
-        private void btnNewCustomer_Click(object sender, RoutedEventArgs e)
+        private async void btnNewCustomer_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new CustomerDialog();
             if (dialog.ShowDialog() == true)
             {
-                _dbContext.Customers.Add(dialog.Customer);
-                _dbContext.SaveChanges();
-
-                // Reload customers and select the new one
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    dbContext.Customers.Add(dialog.Customer);
+                    await dbContext.SaveChangesAsync();
+                }
                 LoadCustomers();
-                cmbCustomers.SelectedItem = dialog.Customer;
             }
         }
 
@@ -181,11 +172,10 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private void btnSave_Click(object sender, RoutedEventArgs e)
+        private async void btnSave_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Validate required fields
                 if (cmbCustomers.SelectedItem == null)
                 {
                     MessageBox.Show("الرجاء اختيار العميل", "تحذير", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -214,7 +204,6 @@ namespace ExpressServicePOS.UI.Views
                     return;
                 }
 
-                // Update order object
                 _selectedCustomer = cmbCustomers.SelectedItem as Customer;
                 if (_selectedCustomer != null)
                 {
@@ -226,11 +215,9 @@ namespace ExpressServicePOS.UI.Views
                 _order.DriverId = _selectedDriver?.Id;
                 _order.Driver = _selectedDriver;
                 _order.DriverName = txtDriverName.Text;
-
                 _order.OrderDescription = txtOrderDescription.Text;
                 _order.OrderDate = dtpOrderDate.SelectedDate ?? DateTime.Now;
 
-                // Update delivery status
                 switch (cmbStatus.SelectedIndex)
                 {
                     case 0:
@@ -258,22 +245,21 @@ namespace ExpressServicePOS.UI.Views
 
                 _order.Notes = txtNotes.Text;
                 _order.IsPaid = chkIsPaid.IsChecked ?? false;
-
-                // Update receipt information
                 _order.SenderName = txtSenderName.Text;
                 _order.SenderPhone = txtSenderPhone.Text;
                 _order.RecipientName = txtRecipientName.Text;
                 _order.RecipientPhone = txtRecipientPhone.Text;
                 _order.PickupLocation = txtPickupLocation.Text;
                 _order.DeliveryLocation = txtDeliveryLocation.Text;
-
-                // Update pricing information
                 _order.Price = price;
                 _order.DeliveryFee = deliveryFee;
                 _order.Currency = ((ComboBoxItem)cmbCurrency.SelectedItem).Content.ToString();
 
-                // Mark the entity as modified
-                _dbContext.Entry(_order).State = EntityState.Modified;
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    dbContext.Orders.Update(_order);
+                    await dbContext.SaveChangesAsync();
+                }
 
                 DialogResult = true;
                 Close();

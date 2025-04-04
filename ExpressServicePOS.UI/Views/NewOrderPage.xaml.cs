@@ -1,13 +1,10 @@
-﻿// File: ExpressServicePOS.UI.Views/NewOrderPage.xaml.cs
-using ExpressServicePOS.Core.Models;
+﻿using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
 using ExpressServicePOS.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,7 +14,7 @@ namespace ExpressServicePOS.UI.Views
     public partial class NewOrderPage : Page
     {
         private readonly IServiceScope _serviceScope;
-        private readonly AppDbContext _dbContext;
+        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
         private readonly ILogger<NewOrderPage> _logger;
         private Customer _selectedCustomer;
         private Driver _selectedDriver;
@@ -27,36 +24,25 @@ namespace ExpressServicePOS.UI.Views
         {
             InitializeComponent();
 
-            // Create a new service scope
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
-
-            // Resolve dependencies from the scope
-            _dbContext = _serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<NewOrderPage>>();
 
-            // Set today's date by default
             dtpOrderDate.SelectedDate = DateTime.Now;
-
-            // Generate an order number
             GenerateOrderNumber();
-
-            // Load customers and drivers
             LoadCustomers();
             LoadDrivers();
 
-            // Register the Unloaded event to dispose resources
             Unloaded += NewOrderPage_Unloaded;
         }
 
         private void NewOrderPage_Unloaded(object sender, RoutedEventArgs e)
         {
-            // Dispose the service scope when the page is unloaded
             _serviceScope?.Dispose();
         }
 
         private void GenerateOrderNumber()
         {
-            // Generate a 4-digit order number
             string orderNumber = _random.Next(1000, 10000).ToString();
             txtOrderNumber.Text = orderNumber;
         }
@@ -65,8 +51,11 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var customers = await _dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
-                cmbCustomers.ItemsSource = customers;
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var customers = await dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
+                    cmbCustomers.ItemsSource = customers;
+                }
             }
             catch (Exception ex)
             {
@@ -79,8 +68,11 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var drivers = await _dbContext.Drivers.Where(d => d.IsActive).OrderBy(d => d.Name).ToListAsync();
-                cmbDrivers.ItemsSource = drivers;
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var drivers = await dbContext.Drivers.Where(d => d.IsActive).OrderBy(d => d.Name).ToListAsync();
+                    cmbDrivers.ItemsSource = drivers;
+                }
             }
             catch (Exception ex)
             {
@@ -94,7 +86,6 @@ namespace ExpressServicePOS.UI.Views
             _selectedCustomer = cmbCustomers.SelectedItem as Customer;
             if (_selectedCustomer != null)
             {
-                // Auto-fill receipt information
                 txtRecipientName.Text = _selectedCustomer.Name;
                 txtRecipientPhone.Text = _selectedCustomer.Phone;
                 txtPickupLocation.Text = _selectedCustomer.Address;
@@ -135,14 +126,11 @@ namespace ExpressServicePOS.UI.Views
 
         private void btnNewCustomer_Click(object sender, RoutedEventArgs e)
         {
-            // Navigate to the customer page for adding a new customer
-            // Implementation would vary based on your navigation approach
             MessageBox.Show("سيتم الانتقال إلى صفحة إضافة عميل جديد", "معلومات", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private async void btnSave_Click(object sender, RoutedEventArgs e)
         {
-            // Validate input
             if (string.IsNullOrWhiteSpace(txtOrderNumber.Text))
             {
                 MessageBox.Show("الرجاء إدخال رقم الطلب", "تحذير", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -173,7 +161,6 @@ namespace ExpressServicePOS.UI.Views
                 return;
             }
 
-            // Save order
             bool success = await SaveOrder();
             if (success)
             {
@@ -186,51 +173,47 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                // Check if order number already exists
-                var existingOrder = await _dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == txtOrderNumber.Text);
-                if (existingOrder != null)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    MessageBox.Show("رقم الطلب موجود بالفعل. الرجاء استخدام رقم آخر.", "تحذير", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return false;
+                    var existingOrder = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == txtOrderNumber.Text);
+                    if (existingOrder != null)
+                    {
+                        MessageBox.Show("رقم الطلب موجود بالفعل. الرجاء استخدام رقم آخر.", "تحذير", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
+
+                    var order = new Order
+                    {
+                        OrderNumber = txtOrderNumber.Text,
+                        CustomerId = _selectedCustomer.Id,
+                        DriverId = _selectedDriver?.Id,
+                        DriverName = txtDriverName.Text,
+                        OrderDescription = txtOrderDescription.Text,
+                        Price = decimal.Parse(txtPrice.Text),
+                        DeliveryFee = decimal.Parse(txtDeliveryFee.Text),
+                        OrderDate = dtpOrderDate.SelectedDate ?? DateTime.Now,
+                        DeliveryStatus = (DeliveryStatus)cmbStatus.SelectedIndex,
+                        Notes = txtNotes.Text,
+                        IsPaid = chkIsPaid.IsChecked ?? false,
+                        Currency = (cmbCurrency.SelectedItem as ComboBoxItem)?.Content as string ?? "USD",
+                        SenderName = txtSenderName.Text,
+                        SenderPhone = txtSenderPhone.Text,
+                        RecipientName = txtRecipientName.Text,
+                        RecipientPhone = txtRecipientPhone.Text,
+                        PickupLocation = txtPickupLocation.Text,
+                        DeliveryLocation = txtDeliveryLocation.Text,
+                        PaymentMethod = (cmbPaymentMethod.SelectedItem as ComboBoxItem)?.Content as string ?? "نقدي",
+                        IsBreakable = chkBreakable.IsChecked ?? false,
+                        IsReplacement = chkReplacement.IsChecked ?? false,
+                        IsReturned = chkReturned.IsChecked ?? false
+                    };
+
+                    dbContext.Orders.Add(order);
+                    await dbContext.SaveChangesAsync();
+
+                    _logger?.LogInformation($"Order {order.OrderNumber} created successfully");
+                    return true;
                 }
-
-                // Create order object
-                var order = new Order
-                {
-                    OrderNumber = txtOrderNumber.Text,
-                    CustomerId = _selectedCustomer.Id,
-                    DriverId = _selectedDriver?.Id,
-                    DriverName = txtDriverName.Text,
-                    OrderDescription = txtOrderDescription.Text,
-                    Price = decimal.Parse(txtPrice.Text),
-                    DeliveryFee = decimal.Parse(txtDeliveryFee.Text),
-                    OrderDate = dtpOrderDate.SelectedDate ?? DateTime.Now,
-                    DeliveryStatus = (DeliveryStatus)cmbStatus.SelectedIndex,
-                    Notes = txtNotes.Text,
-                    IsPaid = chkIsPaid.IsChecked ?? false,
-                    Currency = (cmbCurrency.SelectedItem as ComboBoxItem)?.Content as string ?? "USD",
-
-                    // Receipt information
-                    SenderName = txtSenderName.Text,
-                    SenderPhone = txtSenderPhone.Text,
-                    RecipientName = txtRecipientName.Text,
-                    RecipientPhone = txtRecipientPhone.Text,
-                    PickupLocation = txtPickupLocation.Text,
-                    DeliveryLocation = txtDeliveryLocation.Text,
-                    PaymentMethod = (cmbPaymentMethod.SelectedItem as ComboBoxItem)?.Content as string ?? "نقدي",
-
-                    // Receipt checkboxes
-                    IsBreakable = chkBreakable.IsChecked ?? false,
-                    IsReplacement = chkReplacement.IsChecked ?? false,
-                    IsReturned = chkReturned.IsChecked ?? false
-                };
-
-                // Save to database
-                _dbContext.Orders.Add(order);
-                await _dbContext.SaveChangesAsync();
-
-                _logger?.LogInformation($"Order {order.OrderNumber} created successfully");
-                return true;
             }
             catch (Exception ex)
             {
@@ -245,12 +228,10 @@ namespace ExpressServicePOS.UI.Views
             NavigationService.GoBack();
         }
 
-        // New method to preview the receipt
         private async void btnPreviewReceipt_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Create a temporary order object with current form data
                 var tempOrder = new Order
                 {
                     OrderNumber = txtOrderNumber.Text,
@@ -265,8 +246,6 @@ namespace ExpressServicePOS.UI.Views
                     DeliveryStatus = (DeliveryStatus)cmbStatus.SelectedIndex,
                     IsPaid = chkIsPaid.IsChecked ?? false,
                     Currency = (cmbCurrency.SelectedItem as ComboBoxItem)?.Content as string ?? "USD",
-
-                    // Receipt information
                     RecipientName = txtRecipientName.Text,
                     RecipientPhone = txtRecipientPhone.Text,
                     SenderName = txtSenderName.Text,
@@ -276,16 +255,9 @@ namespace ExpressServicePOS.UI.Views
                     PaymentMethod = (cmbPaymentMethod.SelectedItem as ComboBoxItem)?.Content as string ?? "نقدي"
                 };
 
-                // Get receipt service
                 var receiptService = _serviceScope.ServiceProvider.GetRequiredService<ReceiptService>();
-
-                // Create preview receipt
                 var receiptDocument = await receiptService.CreateExpressServiceReceiptAsync(tempOrder);
-
-                // Get print service
                 var printService = _serviceScope.ServiceProvider.GetRequiredService<PrintService>();
-
-                // Show print preview
                 printService.ShowPrintPreview(receiptDocument);
             }
             catch (Exception ex)

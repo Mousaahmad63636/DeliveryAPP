@@ -20,7 +20,7 @@ namespace ExpressServicePOS.UI.Views
     public partial class OrdersPage : Page
     {
         private readonly IServiceScope _serviceScope;
-        private readonly AppDbContext _dbContext;
+        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
         private readonly ILogger<OrdersPage> _logger;
         private readonly PrintService _printService;
         private List<OrderViewModel> _orders;
@@ -30,7 +30,7 @@ namespace ExpressServicePOS.UI.Views
             InitializeComponent();
 
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
-            _dbContext = _serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<OrdersPage>>();
             _printService = _serviceScope.ServiceProvider.GetRequiredService<PrintService>();
 
@@ -47,49 +47,51 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var orders = await _dbContext.Orders
-                    .Include(o => o.Customer)
-                    .Include(o => o.Driver)
-                    .OrderByDescending(o => o.OrderDate)
-                    .ToListAsync();
-
-                _orders = orders.Select(o => new OrderViewModel
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    Id = o.Id,
-                    OrderNumber = o.OrderNumber,
-                    CustomerName = o.Customer?.Name ?? "غير معروف",
-                    CustomerAddress = o.Customer?.Address ?? "",
-                    CustomerPhone = o.Customer?.Phone ?? "",
-                    OrderDate = o.OrderDate,
-                    DatePaid = o.IsPaid ? o.DeliveryDate ?? o.OrderDate : null,
-                    Status = o.DeliveryStatus,
-                    StatusText = GetStatusText(o.DeliveryStatus),
-                    Price = o.Price,
-                    DeliveryFee = o.DeliveryFee,
-                    TotalPrice = o.TotalPrice,
-                    IsPaid = o.IsPaid,
-                    DriverName = o.Driver?.Name ?? o.DriverName,
-                    DriverVehicleNumber = o.Driver?.VehiclePlateNumber ?? "",
-                    // Added order data for editing
-                    OrderDescription = o.OrderDescription,
-                    Notes = o.Notes,
-                    CustomerId = o.CustomerId,
-                    DriverId = o.DriverId,
-                    RecipientName = o.RecipientName,
-                    RecipientPhone = o.RecipientPhone,
-                    SenderName = o.SenderName,
-                    SenderPhone = o.SenderPhone,
-                    PickupLocation = o.PickupLocation,
-                    DeliveryLocation = o.DeliveryLocation,
-                    Currency = o.Currency,
-                    PaymentMethod = o.PaymentMethod,
-                    IsBreakable = o.IsBreakable,
-                    IsReplacement = o.IsReplacement,
-                    IsReturned = o.IsReturned
-                }).ToList();
+                    var orders = await dbContext.Orders
+                        .Include(o => o.Customer)
+                        .Include(o => o.Driver)
+                        .OrderByDescending(o => o.OrderDate)
+                        .ToListAsync();
 
-                dgOrders.ItemsSource = _orders;
-                UpdateSummary();
+                    _orders = orders.Select(o => new OrderViewModel
+                    {
+                        Id = o.Id,
+                        OrderNumber = o.OrderNumber,
+                        CustomerName = o.Customer?.Name ?? "غير معروف",
+                        CustomerAddress = o.Customer?.Address ?? "",
+                        CustomerPhone = o.Customer?.Phone ?? "",
+                        OrderDate = o.OrderDate,
+                        DatePaid = o.IsPaid ? o.DeliveryDate ?? o.OrderDate : null,
+                        Status = o.DeliveryStatus,
+                        StatusText = GetStatusText(o.DeliveryStatus),
+                        Price = o.Price,
+                        DeliveryFee = o.DeliveryFee,
+                        TotalPrice = o.TotalPrice,
+                        IsPaid = o.IsPaid,
+                        DriverName = o.Driver?.Name ?? o.DriverName,
+                        DriverVehicleNumber = o.Driver?.VehiclePlateNumber ?? "",
+                        OrderDescription = o.OrderDescription,
+                        Notes = o.Notes,
+                        CustomerId = o.CustomerId,
+                        DriverId = o.DriverId,
+                        RecipientName = o.RecipientName,
+                        RecipientPhone = o.RecipientPhone,
+                        SenderName = o.SenderName,
+                        SenderPhone = o.SenderPhone,
+                        PickupLocation = o.PickupLocation,
+                        DeliveryLocation = o.DeliveryLocation,
+                        Currency = o.Currency,
+                        PaymentMethod = o.PaymentMethod,
+                        IsBreakable = o.IsBreakable,
+                        IsReplacement = o.IsReplacement,
+                        IsReturned = o.IsReturned
+                    }).ToList();
+
+                    dgOrders.ItemsSource = _orders;
+                    UpdateSummary();
+                }
             }
             catch (Exception ex)
             {
@@ -216,23 +218,25 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var order = await _dbContext.Orders
-                    .Include(o => o.Customer)
-                    .Include(o => o.Driver)
-                    .FirstOrDefaultAsync(o => o.Id == orderId);
-
-                if (order == null)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    MessageBox.Show("الطلب غير موجود", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
+                    var order = await dbContext.Orders
+                        .Include(o => o.Customer)
+                        .Include(o => o.Driver)
+                        .FirstOrDefaultAsync(o => o.Id == orderId);
 
-                var dialog = new OrderEditDialog(order);
-                if (dialog.ShowDialog() == true)
-                {
-                    await _dbContext.SaveChangesAsync();
-                    LoadOrders();
-                    MessageBox.Show("تم تحديث الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                    if (order == null)
+                    {
+                        MessageBox.Show("الطلب غير موجود", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    var dialog = new OrderEditDialog(order);
+                    if (dialog.ShowDialog() == true)
+                    {
+                        LoadOrders();
+                        MessageBox.Show("تم تحديث الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
                 }
             }
             catch (Exception ex)
@@ -253,13 +257,16 @@ namespace ExpressServicePOS.UI.Views
                 {
                     try
                     {
-                        var order = await _dbContext.Orders.FindAsync(orderId);
-                        if (order != null)
+                        using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                         {
-                            _dbContext.Orders.Remove(order);
-                            await _dbContext.SaveChangesAsync();
-                            LoadOrders();
-                            MessageBox.Show("تم حذف الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                            var order = await dbContext.Orders.FindAsync(orderId);
+                            if (order != null)
+                            {
+                                dbContext.Orders.Remove(order);
+                                await dbContext.SaveChangesAsync();
+                                LoadOrders();
+                                MessageBox.Show("تم حذف الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -277,19 +284,22 @@ namespace ExpressServicePOS.UI.Views
             {
                 if (sender is Button button && button.Tag is int orderId)
                 {
-                    var order = await _dbContext.Orders.FindAsync(orderId);
-                    if (order != null && !order.IsPaid)
+                    using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                     {
-                        order.IsPaid = true;
-                        if (!order.DeliveryDate.HasValue)
+                        var order = await dbContext.Orders.FindAsync(orderId);
+                        if (order != null && !order.IsPaid)
                         {
-                            order.DeliveryDate = DateTime.Now;
-                        }
+                            order.IsPaid = true;
+                            if (!order.DeliveryDate.HasValue)
+                            {
+                                order.DeliveryDate = DateTime.Now;
+                            }
 
-                        _dbContext.Orders.Update(order);
-                        await _dbContext.SaveChangesAsync();
-                        LoadOrders();
-                        MessageBox.Show("تم تحديث حالة الدفع بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                            dbContext.Orders.Update(order);
+                            await dbContext.SaveChangesAsync();
+                            LoadOrders();
+                            MessageBox.Show("تم تحديث حالة الدفع بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
                     }
                 }
             }
@@ -519,8 +529,6 @@ namespace ExpressServicePOS.UI.Views
         public bool IsPaid { get; set; }
         public string DriverName { get; set; }
         public string DriverVehicleNumber { get; set; }
-
-        // Added for editing
         public string OrderDescription { get; set; }
         public string Notes { get; set; }
         public int CustomerId { get; set; }
