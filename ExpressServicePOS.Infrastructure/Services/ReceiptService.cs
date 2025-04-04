@@ -77,12 +77,12 @@ namespace ExpressServicePOS.Infrastructure.Services
                 mainPanel.Children.Add(CreateSeparator());
 
                 // Order Number with configurable color
+                // Order Number with configurable color
                 var orderNumberColor = _currentTemplate.UseColoredOrderNumber ?
                     (ColorConverter.ConvertFromString(_currentTemplate.OrderNumberColor) as Color?) ?? Colors.Red :
                     Colors.Red;
 
-                mainPanel.Children.Add(CreateTextBlock(order.OrderNumber, FontWeights.Bold, 18, HorizontalAlignment.Center, orderNumberColor.Value));
-
+                mainPanel.Children.Add(CreateTextBlock(order.OrderNumber, FontWeights.Bold, 18, HorizontalAlignment.Center, orderNumberColor));
                 // Sender Information
                 mainPanel.Children.Add(CreateLabeledLine(":المرسل", order.SenderName ?? ""));
                 mainPanel.Children.Add(CreateLabeledLine(":هاتف المرسل", order.SenderPhone ?? ""));
