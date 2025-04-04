@@ -1,4 +1,5 @@
-﻿using ExpressServicePOS.Core.Models;
+﻿// File: ExpressServicePOS.UI/Views/NewOrderPage.xaml.cs
+using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
 using ExpressServicePOS.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ namespace ExpressServicePOS.UI.Views
         private readonly ILogger<NewOrderPage> _logger;
         private Customer _selectedCustomer;
         private Driver _selectedDriver;
-        private Random _random = new Random();
+        // Random instance removed as we no longer need it
 
         public NewOrderPage()
         {
@@ -30,7 +31,7 @@ namespace ExpressServicePOS.UI.Views
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<NewOrderPage>>();
 
             dtpOrderDate.SelectedDate = DateTime.Now;
-            GenerateOrderNumber();
+            // GenerateOrderNumber method call removed
 
             LoadCustomersAsync();
             LoadDriversAsync();
@@ -42,11 +43,7 @@ namespace ExpressServicePOS.UI.Views
             _serviceScope?.Dispose();
         }
 
-        private void GenerateOrderNumber()
-        {
-            string orderNumber = _random.Next(1000, 10000).ToString();
-            txtOrderNumber.Text = orderNumber;
-        }
+        // GenerateOrderNumber method removed
 
         // Helper methods to call async methods from constructor
         private async void LoadCustomersAsync()
