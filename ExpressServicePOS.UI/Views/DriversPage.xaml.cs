@@ -14,8 +14,8 @@ namespace ExpressServicePOS.UI.Views
     public partial class DriversPage : Page
     {
         private readonly IServiceScope _serviceScope;
-        private readonly AppDbContext _dbContext;
         private readonly ILogger<DriversPage> _logger;
+        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
         public DriversPage()
         {
@@ -25,7 +25,7 @@ namespace ExpressServicePOS.UI.Views
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
 
             // Resolve dependencies from the scope
-            _dbContext = _serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<DriversPage>>();
 
             // Load drivers
@@ -45,8 +45,11 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                var drivers = await _dbContext.Drivers.OrderBy(d => d.Name).ToListAsync();
-                dgDrivers.ItemsSource = drivers;
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var drivers = await dbContext.Drivers.OrderBy(d => d.Name).ToListAsync();
+                    dgDrivers.ItemsSource = drivers;
+                }
             }
             catch (Exception ex)
             {
@@ -62,9 +65,12 @@ namespace ExpressServicePOS.UI.Views
             {
                 try
                 {
-                    _dbContext.Drivers.Add(dialog.Driver);
-                    _dbContext.SaveChanges();
-                    LoadDrivers();
+                    using (var dbContext = _dbContextFactory.CreateDbContext())
+                    {
+                        dbContext.Drivers.Add(dialog.Driver);
+                        dbContext.SaveChanges();
+                        LoadDrivers();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -93,22 +99,26 @@ namespace ExpressServicePOS.UI.Views
 
             try
             {
-                if (string.IsNullOrEmpty(searchTerm))
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    LoadDrivers();
-                }
-                else
-                {
-                    var drivers = await _dbContext.Drivers
-                        .Where(d => d.Name.Contains(searchTerm) ||
-                               d.Phone.Contains(searchTerm) ||
-                               d.Email.Contains(searchTerm) ||
-                               d.VehiclePlateNumber.Contains(searchTerm) ||
-                               d.AssignedZones.Contains(searchTerm))
-                        .OrderBy(d => d.Name)
-                        .ToListAsync();
+                    if (string.IsNullOrEmpty(searchTerm))
+                    {
+                        var drivers = await dbContext.Drivers.OrderBy(d => d.Name).ToListAsync();
+                        dgDrivers.ItemsSource = drivers;
+                    }
+                    else
+                    {
+                        var drivers = await dbContext.Drivers
+                            .Where(d => d.Name.Contains(searchTerm) ||
+                                   d.Phone.Contains(searchTerm) ||
+                                   d.Email.Contains(searchTerm) ||
+                                   d.VehiclePlateNumber.Contains(searchTerm) ||
+                                   d.AssignedZones.Contains(searchTerm))
+                            .OrderBy(d => d.Name)
+                            .ToListAsync();
 
-                    dgDrivers.ItemsSource = drivers;
+                        dgDrivers.ItemsSource = drivers;
+                    }
                 }
             }
             catch (Exception ex)
@@ -134,22 +144,25 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private void EditDriver(int driverId)
+        private async void EditDriver(int driverId)
         {
             try
             {
-                var driver = _dbContext.Drivers.Find(driverId);
-                if (driver != null)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    var dialog = new DriverDialog();
-                    dialog.Driver = driver;
-                    dialog.PopulateFields();
-
-                    if (dialog.ShowDialog() == true)
+                    var driver = await dbContext.Drivers.FindAsync(driverId);
+                    if (driver != null)
                     {
-                        _dbContext.Entry(driver).State = EntityState.Modified;
-                        _dbContext.SaveChanges();
-                        LoadDrivers();
+                        var dialog = new DriverDialog();
+                        dialog.Driver = driver;
+                        dialog.PopulateFields();
+
+                        if (dialog.ShowDialog() == true)
+                        {
+                            dbContext.Entry(driver).State = EntityState.Modified;
+                            await dbContext.SaveChangesAsync();
+                            LoadDrivers();
+                        }
                     }
                 }
             }
@@ -164,34 +177,37 @@ namespace ExpressServicePOS.UI.Views
         {
             if (sender is Button button && button.Tag is int driverId)
             {
-                // Check if driver has orders
-                var hasOrders = await _dbContext.Orders.AnyAsync(o => o.DriverId == driverId);
-                if (hasOrders)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    MessageBox.Show("لا يمكن حذف هذا السائق لأنه مرتبط بطلبات.", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Confirm deletion
-                var result = MessageBox.Show("هل أنت متأكد من حذف هذا السائق؟", "تأكيد الحذف",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    try
+                    // Check if driver has orders
+                    var hasOrders = await dbContext.Orders.AnyAsync(o => o.DriverId == driverId);
+                    if (hasOrders)
                     {
-                        var driver = await _dbContext.Drivers.FindAsync(driverId);
-                        if (driver != null)
-                        {
-                            _dbContext.Drivers.Remove(driver);
-                            await _dbContext.SaveChangesAsync();
-                            LoadDrivers();
-                        }
+                        MessageBox.Show("لا يمكن حذف هذا السائق لأنه مرتبط بطلبات.", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
                     }
-                    catch (Exception ex)
+
+                    // Confirm deletion
+                    var result = MessageBox.Show("هل أنت متأكد من حذف هذا السائق؟", "تأكيد الحذف",
+                        MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
                     {
-                        _logger?.LogError(ex, "Error deleting driver");
-                        MessageBox.Show($"حدث خطأ أثناء حذف السائق: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        try
+                        {
+                            var driver = await dbContext.Drivers.FindAsync(driverId);
+                            if (driver != null)
+                            {
+                                dbContext.Drivers.Remove(driver);
+                                await dbContext.SaveChangesAsync();
+                                LoadDrivers();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogError(ex, "Error deleting driver");
+                            MessageBox.Show($"حدث خطأ أثناء حذف السائق: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
                     }
                 }
             }

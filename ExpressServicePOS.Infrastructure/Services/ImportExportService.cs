@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,31 +15,23 @@ using ClosedXML.Excel;
 
 namespace ExpressServicePOS.Infrastructure.Services
 {
-    public class ImportExportService
+    public class ImportExportService : BaseService
     {
-        private readonly AppDbContext _dbContext;
-        private readonly ILogger<ImportExportService> _logger;
-
-        public ImportExportService(AppDbContext dbContext, ILogger<ImportExportService> logger)
+        public ImportExportService(IDbContextFactory<AppDbContext> dbContextFactory, ILogger<ImportExportService> logger)
+            : base(dbContextFactory, logger)
         {
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-            // No license setup required for ClosedXML
         }
 
         #region Export Methods
 
-        /// <summary>
-        /// Exports customers to a CSV file.
-        /// </summary>
-        /// <param name="filePath">The path where the CSV file will be saved.</param>
-        /// <returns>True if export was successful, false otherwise.</returns>
         public async Task<bool> ExportCustomersToCsvAsync(string filePath)
         {
             try
             {
-                var customers = await _dbContext.Customers.ToListAsync();
+                var customers = await ExecuteDbOperationAsync(async (dbContext) =>
+                {
+                    return await dbContext.Customers.ToListAsync();
+                });
 
                 using (var writer = new StreamWriter(filePath, false, Encoding.UTF8))
                 using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -51,26 +42,24 @@ namespace ExpressServicePOS.Infrastructure.Services
                     csv.WriteRecords(customers);
                 }
 
-                _logger.LogInformation($"Successfully exported {customers.Count} customers to CSV: {filePath}");
+                Logger.LogInformation($"Successfully exported {customers.Count} customers to CSV: {filePath}");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting customers to CSV");
+                Logger.LogError(ex, "Error exporting customers to CSV");
                 return false;
             }
         }
 
-        /// <summary>
-        /// Exports customers to an Excel file using ClosedXML.
-        /// </summary>
-        /// <param name="filePath">The path where the Excel file will be saved.</param>
-        /// <returns>True if export was successful, false otherwise.</returns>
         public async Task<bool> ExportCustomersToExcelAsync(string filePath)
         {
             try
             {
-                var customers = await _dbContext.Customers.ToListAsync();
+                var customers = await ExecuteDbOperationAsync(async (dbContext) =>
+                {
+                    return await dbContext.Customers.ToListAsync();
+                });
 
                 using (var workbook = new XLWorkbook())
                 {
@@ -100,45 +89,43 @@ namespace ExpressServicePOS.Infrastructure.Services
                     workbook.SaveAs(filePath);
                 }
 
-                _logger.LogInformation($"Successfully exported {customers.Count} customers to Excel: {filePath}");
+                Logger.LogInformation($"Successfully exported {customers.Count} customers to Excel: {filePath}");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting customers to Excel");
+                Logger.LogError(ex, "Error exporting customers to Excel");
                 return false;
             }
         }
 
-        /// <summary>
-        /// Exports orders to a CSV file.
-        /// </summary>
-        /// <param name="filePath">The path where the CSV file will be saved.</param>
-        /// <returns>True if export was successful, false otherwise.</returns>
         public async Task<bool> ExportOrdersToCsvAsync(string filePath)
         {
             try
             {
-                var orders = await _dbContext.Orders
-                    .Include(o => o.Customer)
-                    .Select(o => new
-                    {
-                        o.Id,
-                        o.OrderNumber,
-                        CustomerName = o.Customer.Name,
-                        o.OrderDescription,
-                        o.Price,
-                        o.DeliveryFee,
-                        TotalPrice = o.Price + o.DeliveryFee,
-                        o.Currency,
-                        o.OrderDate,
-                        o.DeliveryDate,
-                        Status = o.DeliveryStatus.ToString(),
-                        o.DriverName,
-                        o.Notes,
-                        o.IsPaid
-                    })
-                    .ToListAsync();
+                var orders = await ExecuteDbOperationAsync(async (dbContext) =>
+                {
+                    return await dbContext.Orders
+                        .Include(o => o.Customer)
+                        .Select(o => new
+                        {
+                            o.Id,
+                            o.OrderNumber,
+                            CustomerName = o.Customer.Name,
+                            o.OrderDescription,
+                            o.Price,
+                            o.DeliveryFee,
+                            TotalPrice = o.Price + o.DeliveryFee,
+                            o.Currency,
+                            o.OrderDate,
+                            o.DeliveryDate,
+                            Status = o.DeliveryStatus.ToString(),
+                            o.DriverName,
+                            o.Notes,
+                            o.IsPaid
+                        })
+                        .ToListAsync();
+                });
 
                 using (var writer = new StreamWriter(filePath, false, Encoding.UTF8))
                 using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -149,28 +136,26 @@ namespace ExpressServicePOS.Infrastructure.Services
                     csv.WriteRecords(orders);
                 }
 
-                _logger.LogInformation($"Successfully exported {orders.Count} orders to CSV: {filePath}");
+                Logger.LogInformation($"Successfully exported {orders.Count} orders to CSV: {filePath}");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting orders to CSV");
+                Logger.LogError(ex, "Error exporting orders to CSV");
                 return false;
             }
         }
 
-        /// <summary>
-        /// Exports orders to an Excel file using ClosedXML.
-        /// </summary>
-        /// <param name="filePath">The path where the Excel file will be saved.</param>
-        /// <returns>True if export was successful, false otherwise.</returns>
         public async Task<bool> ExportOrdersToExcelAsync(string filePath)
         {
             try
             {
-                var orders = await _dbContext.Orders
-                    .Include(o => o.Customer)
-                    .ToListAsync();
+                var orders = await ExecuteDbOperationAsync(async (dbContext) =>
+                {
+                    return await dbContext.Orders
+                        .Include(o => o.Customer)
+                        .ToListAsync();
+                });
 
                 using (var workbook = new XLWorkbook())
                 {
@@ -220,12 +205,12 @@ namespace ExpressServicePOS.Infrastructure.Services
                     workbook.SaveAs(filePath);
                 }
 
-                _logger.LogInformation($"Successfully exported {orders.Count} orders to Excel: {filePath}");
+                Logger.LogInformation($"Successfully exported {orders.Count} orders to Excel: {filePath}");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error exporting orders to Excel");
+                Logger.LogError(ex, "Error exporting orders to Excel");
                 return false;
             }
         }
@@ -234,11 +219,6 @@ namespace ExpressServicePOS.Infrastructure.Services
 
         #region Import Methods
 
-        /// <summary>
-        /// Imports customers from a CSV file.
-        /// </summary>
-        /// <param name="filePath">The path to the CSV file.</param>
-        /// <returns>A tuple containing success status and the number of imported records.</returns>
         public async Task<(bool Success, int Count)> ImportCustomersFromCsvAsync(string filePath)
         {
             try
@@ -248,46 +228,44 @@ namespace ExpressServicePOS.Infrastructure.Services
                 {
                     var customers = csv.GetRecords<Customer>().ToList();
 
-                    foreach (var customer in customers)
+                    return await ExecuteDbOperationAsync(async (dbContext) =>
                     {
-                        // Check if customer already exists
-                        var existingCustomer = await _dbContext.Customers
-                            .FirstOrDefaultAsync(c => c.Phone == customer.Phone);
-
-                        if (existingCustomer == null)
+                        foreach (var customer in customers)
                         {
-                            // New customer, add to database
-                            _dbContext.Customers.Add(customer);
+                            // Check if customer already exists
+                            var existingCustomer = await dbContext.Customers
+                                .FirstOrDefaultAsync(c => c.Phone == customer.Phone);
+
+                            if (existingCustomer == null)
+                            {
+                                // New customer, add to database
+                                dbContext.Customers.Add(customer);
+                            }
+                            else
+                            {
+                                // Customer exists, update properties
+                                existingCustomer.Name = customer.Name;
+                                existingCustomer.Address = customer.Address;
+                                existingCustomer.Notes = customer.Notes;
+
+                                dbContext.Customers.Update(existingCustomer);
+                            }
                         }
-                        else
-                        {
-                            // Customer exists, update properties
-                            existingCustomer.Name = customer.Name;
-                            existingCustomer.Address = customer.Address;
-                            existingCustomer.Notes = customer.Notes;
 
-                            _dbContext.Customers.Update(existingCustomer);
-                        }
-                    }
+                        await dbContext.SaveChangesAsync();
 
-                    await _dbContext.SaveChangesAsync();
-
-                    _logger.LogInformation($"Successfully imported {customers.Count} customers from CSV: {filePath}");
-                    return (true, customers.Count);
+                        Logger.LogInformation($"Successfully imported {customers.Count} customers from CSV: {filePath}");
+                        return (true, customers.Count);
+                    });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error importing customers from CSV");
+                Logger.LogError(ex, "Error importing customers from CSV");
                 return (false, 0);
             }
         }
 
-        /// <summary>
-        /// Imports customers from an Excel file using ClosedXML.
-        /// </summary>
-        /// <param name="filePath">The path to the Excel file.</param>
-        /// <returns>A tuple containing success status and the number of imported records.</returns>
         public async Task<(bool Success, int Count)> ImportCustomersFromExcelAsync(string filePath)
         {
             try
@@ -296,57 +274,61 @@ namespace ExpressServicePOS.Infrastructure.Services
                 {
                     var worksheet = workbook.Worksheet(1); // First worksheet
                     var rows = worksheet.RowsUsed();
-                    int importedCount = 0;
 
-                    // Skip the header row (row 1)
-                    foreach (var row in rows.Skip(1))
+                    return await ExecuteDbOperationAsync(async (dbContext) =>
                     {
-                        string name = row.Cell(2).GetString();
-                        string address = row.Cell(3).GetString();
-                        string phone = row.Cell(4).GetString();
-                        string notes = row.Cell(5).GetString();
+                        int importedCount = 0;
 
-                        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(phone))
-                            continue;
-
-                        // Check if customer already exists
-                        var existingCustomer = await _dbContext.Customers
-                            .FirstOrDefaultAsync(c => c.Phone == phone);
-
-                        if (existingCustomer == null)
+                        // Skip the header row (row 1)
+                        foreach (var row in rows.Skip(1))
                         {
-                            // New customer, add to database
-                            _dbContext.Customers.Add(new Customer
+                            string name = row.Cell(2).GetString();
+                            string address = row.Cell(3).GetString();
+                            string phone = row.Cell(4).GetString();
+                            string notes = row.Cell(5).GetString();
+
+                            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(phone))
+                                continue;
+
+                            // Check if customer already exists
+                            var existingCustomer = await dbContext.Customers
+                                .FirstOrDefaultAsync(c => c.Phone == phone);
+
+                            if (existingCustomer == null)
                             {
-                                Name = name,
-                                Address = address,
-                                Phone = phone,
-                                Notes = notes
-                            });
+                                // New customer, add to database
+                                dbContext.Customers.Add(new Customer
+                                {
+                                    Name = name,
+                                    Address = address,
+                                    Phone = phone,
+                                    Notes = notes
+                                });
 
-                            importedCount++;
+                                importedCount++;
+                            }
+                            else
+                            {
+                                // Customer exists, update properties
+                                existingCustomer.Name = name;
+                                existingCustomer.Address = address;
+                                existingCustomer.Notes = notes;
+
+                                dbContext.Customers.Update(existingCustomer);
+                                importedCount++;
+                            }
                         }
-                        else
-                        {
-                            // Customer exists, update properties
-                            existingCustomer.Name = name;
-                            existingCustomer.Address = address;
-                            existingCustomer.Notes = notes;
 
-                            _dbContext.Customers.Update(existingCustomer);
-                            importedCount++;
-                        }
-                    }
+                        await dbContext.SaveChangesAsync();
 
-                    await _dbContext.SaveChangesAsync();
-
-                    _logger.LogInformation($"Successfully imported {importedCount} customers from Excel: {filePath}");
-                    return (true, importedCount);
+                        Logger.LogInformation($"Successfully imported {importedCount} customers from Excel: {filePath}");
+                        return (true, importedCount);
+                    });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error importing customers from Excel");
+                Logger.LogError(ex, "Error importing customers from Excel");
                 return (false, 0);
             }
         }

@@ -9,15 +9,11 @@ using System.Threading.Tasks;
 
 namespace ExpressServicePOS.Infrastructure.Services
 {
-    public class ReportService
+    public class ReportService : BaseService
     {
-        private readonly AppDbContext _dbContext;
-        private readonly ILogger<ReportService> _logger;
-
-        public ReportService(AppDbContext dbContext, ILogger<ReportService> logger)
+        public ReportService(IDbContextFactory<AppDbContext> dbContextFactory, ILogger<ReportService> logger)
+            : base(dbContextFactory, logger)
         {
-            _dbContext = dbContext;
-            _logger = logger;
         }
 
         public async Task<List<CustomerStatementViewModel>> GenerateCustomerStatementAsync(
@@ -27,29 +23,32 @@ namespace ExpressServicePOS.Infrastructure.Services
         {
             try
             {
-                var statement = await _dbContext.Orders
-                    .Where(o => o.CustomerId == customerId &&
-                                o.OrderDate >= startDate &&
-                                o.OrderDate <= endDate)
-                    .Include(o => o.Customer)
-                    .Select(o => new CustomerStatementViewModel
-                    {
-                        OrderNumber = o.OrderNumber,
-                        OrderDescription = o.OrderDescription,
-                        OrderDate = o.OrderDate,
-                        DeliveryDate = o.DeliveryDate,
-                        TotalAmount = o.TotalPrice,
-                        Status = o.DeliveryStatus,
-                        CustomerName = o.Customer.Name,
-                        CustomerPhone = o.Customer.Phone
-                    })
-                    .ToListAsync();
+                return await ExecuteDbOperationAsync(async (dbContext) =>
+                {
+                    var statement = await dbContext.Orders
+                        .Where(o => o.CustomerId == customerId &&
+                                    o.OrderDate >= startDate &&
+                                    o.OrderDate <= endDate)
+                        .Include(o => o.Customer)
+                        .Select(o => new CustomerStatementViewModel
+                        {
+                            OrderNumber = o.OrderNumber,
+                            OrderDescription = o.OrderDescription,
+                            OrderDate = o.OrderDate,
+                            DeliveryDate = o.DeliveryDate,
+                            TotalAmount = o.TotalPrice,
+                            Status = o.DeliveryStatus,
+                            CustomerName = o.Customer.Name,
+                            CustomerPhone = o.Customer.Phone
+                        })
+                        .ToListAsync();
 
-                return statement;
+                    return statement;
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating customer statement");
+                Logger.LogError(ex, "Error generating customer statement");
                 throw;
             }
         }

@@ -8,80 +8,79 @@ using System.Threading.Tasks;
 
 namespace ExpressServicePOS.Data.Services
 {
-    public class DatabaseService
+    public class DatabaseService : BaseService
     {
-        private readonly AppDbContext _context;
-        private readonly ILogger<DatabaseService> _logger;
-
-        public DatabaseService(AppDbContext context, ILogger<DatabaseService> logger)
+        public DatabaseService(IDbContextFactory<AppDbContext> dbContextFactory, ILogger<DatabaseService> logger)
+            : base(dbContextFactory, logger)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task InitializeDatabaseAsync()
         {
             try
             {
-                _logger.LogInformation("Initializing database...");
+                Logger.LogInformation("Initializing database...");
 
-                // Ensure database is created and up to date
-                await _context.Database.EnsureCreatedAsync();
-                await MigrateIfNeededAsync();
+                await ExecuteDbOperationAsync(async (dbContext) =>
+                {
+                    // Ensure database is created and up to date
+                    await dbContext.Database.EnsureCreatedAsync();
+                    await MigrateIfNeededAsync(dbContext);
 
-                // Seed initial data if no records exist
-                await SeedInitialDataIfEmptyAsync();
+                    // Seed initial data if no records exist
+                    await SeedInitialDataIfEmptyAsync(dbContext);
+                });
 
-                _logger.LogInformation("Database initialization completed successfully.");
+                Logger.LogInformation("Database initialization completed successfully.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Critical error during database initialization");
+                Logger.LogError(ex, "Critical error during database initialization");
                 throw new InvalidOperationException("فشل تهيئة قاعدة البيانات", ex);
             }
         }
 
-        private async Task MigrateIfNeededAsync()
+        private async Task MigrateIfNeededAsync(AppDbContext dbContext)
         {
             try
             {
-                var pendingMigrations = await _context.Database.GetPendingMigrationsAsync();
+                var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
                 if (pendingMigrations.Any())
                 {
-                    _logger.LogInformation($"Applying {pendingMigrations.Count()} pending migrations");
-                    await _context.Database.MigrateAsync();
+                    Logger.LogInformation($"Applying {pendingMigrations.Count()} pending migrations");
+                    await dbContext.Database.MigrateAsync();
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error applying database migrations");
+                Logger.LogError(ex, "Error applying database migrations");
                 throw;
             }
         }
 
-        private async Task SeedInitialDataIfEmptyAsync()
+        private async Task SeedInitialDataIfEmptyAsync(AppDbContext dbContext)
         {
             try
             {
                 // Check if database is empty
-                if (!await _context.Customers.AnyAsync())
+                if (!await dbContext.Customers.AnyAsync())
                 {
-                    await SeedCustomersAsync();
+                    await SeedCustomersAsync(dbContext);
                 }
 
-                if (!await _context.Orders.AnyAsync())
+                if (!await dbContext.Orders.AnyAsync())
                 {
-                    await SeedOrdersAsync();
+                    await SeedOrdersAsync(dbContext);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error seeding initial database data");
+                Logger.LogError(ex, "Error seeding initial database data");
                 throw;
             }
         }
 
-        private async Task SeedCustomersAsync()
+        private async Task SeedCustomersAsync(AppDbContext dbContext)
         {
             var customers = new[]
             {
@@ -101,13 +100,13 @@ namespace ExpressServicePOS.Data.Services
                 }
             };
 
-            _context.Customers.AddRange(customers);
-            await _context.SaveChangesAsync();
+            dbContext.Customers.AddRange(customers);
+            await dbContext.SaveChangesAsync();
         }
 
-        private async Task SeedOrdersAsync()
+        private async Task SeedOrdersAsync(AppDbContext dbContext)
         {
-            var customers = await _context.Customers.ToListAsync();
+            var customers = await dbContext.Customers.ToListAsync();
 
             var orders = new[]
             {
@@ -140,8 +139,8 @@ namespace ExpressServicePOS.Data.Services
                 }
             };
 
-            _context.Orders.AddRange(orders);
-            await _context.SaveChangesAsync();
+            dbContext.Orders.AddRange(orders);
+            await dbContext.SaveChangesAsync();
         }
     }
 }

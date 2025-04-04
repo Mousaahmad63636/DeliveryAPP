@@ -52,7 +52,20 @@ namespace ExpressServicePOS.UI
             string connectionString = configuration.GetConnectionString("DefaultConnection") ??
                 "Server=.\\posserver;Database=ExpressServicePOS;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
-            // Configure DbContext with proper lifetime
+            // Register DbContextFactory for thread-safe DbContext creation
+            services.AddDbContextFactory<AppDbContext>(options =>
+            {
+                options.UseSqlServer(connectionString,
+                    sqlServerOptionsAction: sqlOptions =>
+                    {
+                        sqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 3,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorNumbersToAdd: null);
+                    });
+            });
+
+            // Also register scoped DbContext for backward compatibility
             services.AddDbContext<AppDbContext>(options =>
             {
                 options.UseSqlServer(connectionString,
@@ -65,20 +78,18 @@ namespace ExpressServicePOS.UI
                     });
             }, ServiceLifetime.Scoped);
 
-            // Register core services with appropriate lifetimes
+            // Register core services
             services.AddScoped<DatabaseTestService>();
             services.AddScoped<DatabaseService>();
             services.AddScoped<DatabaseInitializer>();
             services.AddScoped<ReportService>();
             services.AddScoped<ReceiptService>();
-            // Register new services
             services.AddScoped<ImportExportService>();
-            services.AddScoped<ReceiptService>();
             services.AddScoped<PrintService>();
             services.AddScoped<CurrencyService>();
             services.AddScoped<BackupService>();
 
-            // Register pages with transient lifetime
+            // Register pages
             services.AddTransient<MainWindow>();
             services.AddTransient<DashboardPage>();
             services.AddTransient<CustomersPage>();
@@ -96,7 +107,6 @@ namespace ExpressServicePOS.UI
 
             try
             {
-                // Initialize database on startup
                 using (var scope = ServiceProvider.CreateScope())
                 {
                     try
@@ -125,7 +135,6 @@ namespace ExpressServicePOS.UI
 
                     try
                     {
-                        // Initialize currency service
                         var currencyService = scope.ServiceProvider.GetRequiredService<CurrencyService>();
                         await currencyService.LoadSettingsAsync();
                     }
@@ -137,17 +146,14 @@ namespace ExpressServicePOS.UI
                     }
                 }
 
-                // Create the main window using dependency injection
                 var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
-
-                // Important: Set the main window for the application
                 Current.MainWindow = mainWindow;
                 mainWindow.Show();
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "An error occurred during application startup.");
-                MessageBox.Show($"خطأ أثناء بدء التطبيق: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}",
+                MessageBox.Show($"خطأ أثناء بدء التطبيق: {ex.Message}",
                     "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(-1);
             }

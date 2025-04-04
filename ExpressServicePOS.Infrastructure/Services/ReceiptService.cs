@@ -1,5 +1,4 @@
-﻿// File: ExpressServicePOS.Infrastructure.Services/ReceiptService.cs
-using ExpressServicePOS.Core.Models;
+﻿using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -12,46 +11,34 @@ using System.Windows.Media;
 
 namespace ExpressServicePOS.Infrastructure.Services
 {
-    /// <summary>
-    /// Service for managing receipt templates and generating receipts.
-    /// </summary>
-    public class ReceiptService
+    public class ReceiptService : BaseService
     {
-        private readonly AppDbContext _dbContext;
-        private readonly ILogger<ReceiptService> _logger;
         private ReceiptTemplate _currentTemplate;
 
-        public ReceiptService(AppDbContext dbContext, ILogger<ReceiptService> logger)
+        public ReceiptService(IDbContextFactory<AppDbContext> dbContextFactory, ILogger<ReceiptService> logger)
+            : base(dbContextFactory, logger)
         {
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        /// <summary>
-        /// Gets the current receipt template.
-        /// </summary>
-        /// <returns>The current receipt template.</returns>
         public async Task<ReceiptTemplate> GetCurrentTemplateAsync()
         {
             if (_currentTemplate == null)
             {
-                _currentTemplate = await _dbContext.ReceiptTemplates.FirstOrDefaultAsync();
-                if (_currentTemplate == null)
+                await ExecuteDbOperationAsync(async (dbContext) =>
                 {
-                    // Create default template if none exists
-                    _currentTemplate = new ReceiptTemplate();
-                    _dbContext.ReceiptTemplates.Add(_currentTemplate);
-                    await _dbContext.SaveChangesAsync();
-                }
+                    _currentTemplate = await dbContext.ReceiptTemplates.FirstOrDefaultAsync();
+                    if (_currentTemplate == null)
+                    {
+                        // Create default template if none exists
+                        _currentTemplate = new ReceiptTemplate();
+                        dbContext.ReceiptTemplates.Add(_currentTemplate);
+                        await dbContext.SaveChangesAsync();
+                    }
+                });
             }
             return _currentTemplate;
         }
 
-        /// <summary>
-        /// Creates a FlowDocument for an order receipt exactly matching the format in the new image.
-        /// </summary>
-        /// <param name="order">The order to create a receipt for.</param>
-        /// <returns>A FlowDocument representing the receipt.</returns>
         public async Task<FlowDocument> CreateExpressServiceReceiptAsync(Order order)
         {
             try
@@ -78,16 +65,23 @@ namespace ExpressServicePOS.Infrastructure.Services
                     Margin = new Thickness(10)
                 };
 
+                // Get current template
+                await GetCurrentTemplateAsync();
+
                 // Company Header with more spacing
-                mainPanel.Children.Add(CreateTextBlock("EXPRESS SERVICE TEAM", FontWeights.Bold, 14, HorizontalAlignment.Right));
-                mainPanel.Children.Add(CreateTextBlock("81 / 616919 - 03 / 616919", FontWeights.Normal, 10, HorizontalAlignment.Right));
-                mainPanel.Children.Add(CreateTextBlock("طريق المطار - نزلة عين الدولة", FontWeights.Normal, 10, HorizontalAlignment.Right));
+                mainPanel.Children.Add(CreateTextBlock(_currentTemplate.HeaderText, FontWeights.Bold, 14, HorizontalAlignment.Right));
+                mainPanel.Children.Add(CreateTextBlock(_currentTemplate.ContactInfo, FontWeights.Normal, 10, HorizontalAlignment.Right));
+                mainPanel.Children.Add(CreateTextBlock(_currentTemplate.Address, FontWeights.Normal, 10, HorizontalAlignment.Right));
 
                 // Separator
                 mainPanel.Children.Add(CreateSeparator());
 
-                // Order Number
-                mainPanel.Children.Add(CreateTextBlock(order.OrderNumber, FontWeights.Bold, 18, HorizontalAlignment.Center, Colors.Red));
+                // Order Number with configurable color
+                var orderNumberColor = _currentTemplate.UseColoredOrderNumber ?
+                    (ColorConverter.ConvertFromString(_currentTemplate.OrderNumberColor) as Color?) ?? Colors.Red :
+                    Colors.Red;
+
+                mainPanel.Children.Add(CreateTextBlock(order.OrderNumber, FontWeights.Bold, 18, HorizontalAlignment.Center, orderNumberColor.Value));
 
                 // Sender Information
                 mainPanel.Children.Add(CreateLabeledLine(":المرسل", order.SenderName ?? ""));
@@ -117,7 +111,7 @@ namespace ExpressServicePOS.Infrastructure.Services
                     FontWeights.Bold, 12, HorizontalAlignment.Right));
 
                 // Disclaimer
-                mainPanel.Children.Add(CreateTextBlock("نحن غير مسؤولين عن محتوى الطرد وعن قانونية البضاعة الموجودة داخله",
+                mainPanel.Children.Add(CreateTextBlock(_currentTemplate.FooterText,
                     FontWeights.Normal, 10, HorizontalAlignment.Center));
 
                 // Add panel to section
@@ -130,7 +124,7 @@ namespace ExpressServicePOS.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error creating receipt for order {order?.Id}");
+                Logger.LogError(ex, $"Error creating receipt for order {order?.Id}");
                 throw;
             }
         }

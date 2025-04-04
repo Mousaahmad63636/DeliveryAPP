@@ -13,7 +13,7 @@ namespace ExpressServicePOS.UI.Views
     public partial class SettingsPage : Page
     {
         private readonly IServiceScope _serviceScope;
-        private readonly AppDbContext _dbContext;
+        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
         private readonly CurrencyService _currencyService;
         private readonly ILogger<SettingsPage> _logger;
 
@@ -25,7 +25,7 @@ namespace ExpressServicePOS.UI.Views
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
 
             // Resolve dependencies from the scope
-            _dbContext = _serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _currencyService = _serviceScope.ServiceProvider.GetRequiredService<CurrencyService>();
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<SettingsPage>>();
 
@@ -47,16 +47,19 @@ namespace ExpressServicePOS.UI.Views
             try
             {
                 // Load company profile
-                var companyProfile = await _dbContext.CompanyProfile.FirstOrDefaultAsync();
-                if (companyProfile != null)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    txtCompanyName.Text = companyProfile.CompanyName;
-                    txtCompanyAddress.Text = companyProfile.Address;
-                    txtCompanyPhone.Text = companyProfile.Phone;
-                    txtCompanyEmail.Text = companyProfile.Email;
-                    txtCompanyWebsite.Text = companyProfile.Website;
-                    txtCompanyTaxNumber.Text = companyProfile.TaxNumber;
-                    txtReceiptFooter.Text = companyProfile.ReceiptFooterText;
+                    var companyProfile = await dbContext.CompanyProfile.FirstOrDefaultAsync();
+                    if (companyProfile != null)
+                    {
+                        txtCompanyName.Text = companyProfile.CompanyName;
+                        txtCompanyAddress.Text = companyProfile.Address;
+                        txtCompanyPhone.Text = companyProfile.Phone;
+                        txtCompanyEmail.Text = companyProfile.Email;
+                        txtCompanyWebsite.Text = companyProfile.Website;
+                        txtCompanyTaxNumber.Text = companyProfile.TaxNumber;
+                        txtReceiptFooter.Text = companyProfile.ReceiptFooterText;
+                    }
                 }
 
                 // Load currency settings
@@ -66,9 +69,6 @@ namespace ExpressServicePOS.UI.Views
                 chkEnableLBP.IsChecked = currencySettings.EnableLBP;
                 txtExchangeRate.Text = currencySettings.USDToLBPRate.ToString();
                 cmbDefaultCurrency.SelectedIndex = currencySettings.DefaultCurrency == "USD" ? 0 : 1;
-
-                // Load other settings
-                // Currently hardcoded in the UI
             }
             catch (Exception ex)
             {
@@ -89,32 +89,35 @@ namespace ExpressServicePOS.UI.Views
                     return;
                 }
 
-                // Get existing profile or create new one
-                var companyProfile = await _dbContext.CompanyProfile.FirstOrDefaultAsync();
-                if (companyProfile == null)
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    companyProfile = new CompanyProfile
+                    // Get existing profile or create new one
+                    var companyProfile = await dbContext.CompanyProfile.FirstOrDefaultAsync();
+                    if (companyProfile == null)
                     {
-                        CompanyName = txtCompanyName.Text,
-                        LastUpdated = DateTime.Now
-                    };
-                    _dbContext.CompanyProfile.Add(companyProfile);
-                }
-                else
-                {
-                    companyProfile.CompanyName = txtCompanyName.Text;
-                    companyProfile.LastUpdated = DateTime.Now;
-                }
+                        companyProfile = new CompanyProfile
+                        {
+                            CompanyName = txtCompanyName.Text,
+                            LastUpdated = DateTime.Now
+                        };
+                        dbContext.CompanyProfile.Add(companyProfile);
+                    }
+                    else
+                    {
+                        companyProfile.CompanyName = txtCompanyName.Text;
+                        companyProfile.LastUpdated = DateTime.Now;
+                    }
 
-                // Update other fields
-                companyProfile.Address = txtCompanyAddress.Text;
-                companyProfile.Phone = txtCompanyPhone.Text;
-                companyProfile.Email = txtCompanyEmail.Text;
-                companyProfile.Website = txtCompanyWebsite.Text;
-                companyProfile.TaxNumber = txtCompanyTaxNumber.Text;
-                companyProfile.ReceiptFooterText = txtReceiptFooter.Text;
+                    // Update other fields
+                    companyProfile.Address = txtCompanyAddress.Text;
+                    companyProfile.Phone = txtCompanyPhone.Text;
+                    companyProfile.Email = txtCompanyEmail.Text;
+                    companyProfile.Website = txtCompanyWebsite.Text;
+                    companyProfile.TaxNumber = txtCompanyTaxNumber.Text;
+                    companyProfile.ReceiptFooterText = txtReceiptFooter.Text;
 
-                await _dbContext.SaveChangesAsync();
+                    await dbContext.SaveChangesAsync();
+                }
 
                 MessageBox.Show("تم حفظ معلومات الشركة بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
             }
