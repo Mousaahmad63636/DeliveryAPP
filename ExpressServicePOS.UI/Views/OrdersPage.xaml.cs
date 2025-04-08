@@ -85,6 +85,11 @@ namespace ExpressServicePOS.UI.Views
         private readonly ILogger<OrdersPage> _logger;
         private readonly PrintService _printService;
         private List<OrderViewModel> _orders;
+        private List<OrderViewModel> _filteredOrders;
+        private List<Customer> _customers;
+        private Customer _selectedCustomer;
+        private DateTime? _startDate;
+        private DateTime? _endDate;
 
         public OrdersPage()
         {
@@ -95,13 +100,55 @@ namespace ExpressServicePOS.UI.Views
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<OrdersPage>>();
             _printService = _serviceScope.ServiceProvider.GetRequiredService<PrintService>();
 
+            // Set default date range (current month)
+            var today = DateTime.Today;
+            var firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
+            _startDate = firstDayOfMonth;
+            _endDate = today;
+
+            dpStartDate.SelectedDate = _startDate;
+            dpEndDate.SelectedDate = _endDate;
+
             LoadOrders();
+            LoadCustomers();
             Unloaded += OrdersPage_Unloaded;
         }
 
         private void OrdersPage_Unloaded(object sender, RoutedEventArgs e)
         {
             _serviceScope?.Dispose();
+        }
+
+        private async void LoadCustomers()
+        {
+            try
+            {
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    _customers = await dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
+
+                    // Add an "All Customers" option at the beginning
+                    var allCustomersOption = new Customer
+                    {
+                        Id = -1,
+                        Name = "-- جميع العملاء --",
+                        Address = "",
+                        Phone = "",
+                        Notes = ""
+                    };
+
+                    var customersList = new List<Customer> { allCustomersOption };
+                    customersList.AddRange(_customers);
+
+                    cmbCustomers.ItemsSource = customersList;
+                    cmbCustomers.SelectedIndex = 0; // Select "All Customers" by default
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error loading customers");
+                MessageBox.Show($"حدث خطأ أثناء تحميل بيانات العملاء: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async void LoadOrders()
@@ -160,8 +207,7 @@ namespace ExpressServicePOS.UI.Views
                             : FormatAmount(o.DeliveryFee, o.Currency)
                     }).ToList();
 
-                    dgOrders.ItemsSource = _orders;
-                    UpdateSummary();
+                    ApplyFilters();
                 }
             }
             catch (Exception ex)
@@ -178,23 +224,81 @@ namespace ExpressServicePOS.UI.Views
                 : $"{amount:N0} ل.ل";
         }
 
-        private void UpdateSummary()
+        private void ApplyFilters()
         {
             if (_orders == null || !_orders.Any())
+            {
+                _filteredOrders = new List<OrderViewModel>();
+                dgOrders.ItemsSource = _filteredOrders;
+                UpdateSummary();
+                return;
+            }
+
+            // Start with all orders
+            var filteredOrders = _orders;
+
+            // Apply customer filter if selected
+            if (_selectedCustomer != null && _selectedCustomer.Id > 0)
+            {
+                filteredOrders = filteredOrders.Where(o => o.CustomerId == _selectedCustomer.Id).ToList();
+            }
+
+            // Apply date range filter
+            if (_startDate.HasValue)
+            {
+                filteredOrders = filteredOrders.Where(o => o.OrderDate.Date >= _startDate.Value.Date).ToList();
+            }
+
+            if (_endDate.HasValue)
+            {
+                filteredOrders = filteredOrders.Where(o => o.OrderDate.Date <= _endDate.Value.Date).ToList();
+            }
+
+            // Apply search filter if any
+            string searchTerm = txtSearch.Text.Trim().ToLower();
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                filteredOrders = filteredOrders.Where(o =>
+                    o.OrderNumber.ToLower().Contains(searchTerm) ||
+                    o.CustomerName.ToLower().Contains(searchTerm) ||
+                    o.CustomerPhone.ToLower().Contains(searchTerm) ||
+                    (o.RecipientPhone != null && o.RecipientPhone.ToLower().Contains(searchTerm)) ||
+                    o.Id.ToString().Contains(searchTerm) ||
+                    (o.DriverName != null && o.DriverName.ToLower().Contains(searchTerm)) ||
+                    (o.DriverVehicleNumber != null && o.DriverVehicleNumber.ToLower().Contains(searchTerm))
+                ).ToList();
+            }
+
+            _filteredOrders = filteredOrders;
+            dgOrders.ItemsSource = _filteredOrders;
+
+            UpdateSummary();
+        }
+
+        private void UpdateSummary()
+        {
+            if (_filteredOrders == null || !_filteredOrders.Any())
             {
                 txtTotalPrice.Text = "0.00";
                 txtTotalProfit.Text = "0.00";
                 txtGrandTotal.Text = "0.00";
+                txtDeliveredCount.Text = "0";
+                txtPendingCount.Text = "0";
                 return;
             }
 
-            decimal totalPrice = _orders.Sum(o => o.Price);
-            decimal totalProfit = _orders.Sum(o => o.DeliveryFee);
-            decimal grandTotal = _orders.Sum(o => o.TotalPrice);
+            decimal totalPrice = _filteredOrders.Sum(o => o.Price);
+            decimal totalProfit = _filteredOrders.Sum(o => o.DeliveryFee);
+            decimal grandTotal = _filteredOrders.Sum(o => o.TotalPrice);
+
+            int deliveredCount = _filteredOrders.Count(o => o.Status == DeliveryStatus.Delivered);
+            int pendingCount = _filteredOrders.Count(o => o.Status != DeliveryStatus.Delivered);
 
             txtTotalPrice.Text = totalPrice.ToString("N2");
             txtTotalProfit.Text = totalProfit.ToString("N2");
             txtGrandTotal.Text = grandTotal.ToString("N2");
+            txtDeliveredCount.Text = deliveredCount.ToString();
+            txtPendingCount.Text = pendingCount.ToString();
         }
 
         private string GetStatusText(DeliveryStatus status)
@@ -234,46 +338,66 @@ namespace ExpressServicePOS.UI.Views
 
         private void btnSearch_Click(object sender, RoutedEventArgs e)
         {
-            ApplySearch();
+            ApplyFilters();
         }
 
         private void txtSearch_KeyUp(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
-                ApplySearch();
+                ApplyFilters();
             }
         }
 
-        private void ApplySearch()
+        private void cmbCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            string searchTerm = txtSearch.Text.Trim().ToLower();
-
-            if (string.IsNullOrEmpty(searchTerm))
+            if (cmbCustomers.SelectedItem is Customer customer)
             {
-                dgOrders.ItemsSource = _orders;
-                UpdateSummary();
-                return;
+                if (customer.Id == -1) // "All Customers" option
+                {
+                    _selectedCustomer = null;
+                }
+                else
+                {
+                    _selectedCustomer = customer;
+                }
+
+                ApplyFilters();
+            }
+        }
+
+        private void DateFilter_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender == dpStartDate)
+            {
+                _startDate = dpStartDate.SelectedDate;
+            }
+            else if (sender == dpEndDate)
+            {
+                _endDate = dpEndDate.SelectedDate;
             }
 
-            var filteredOrders = _orders.Where(o =>
-                o.OrderNumber.ToLower().Contains(searchTerm) ||
-                o.CustomerName.ToLower().Contains(searchTerm) ||
-                o.CustomerPhone.ToLower().Contains(searchTerm) ||
-                o.Id.ToString().Contains(searchTerm) ||
-                (o.DriverName != null && o.DriverName.ToLower().Contains(searchTerm)) ||
-                (o.DriverVehicleNumber != null && o.DriverVehicleNumber.ToLower().Contains(searchTerm))
-            ).ToList();
+            ApplyFilters();
+        }
 
-            dgOrders.ItemsSource = filteredOrders;
+        private void btnResetFilter_Click(object sender, RoutedEventArgs e)
+        {
+            // Reset all filters
+            cmbCustomers.SelectedIndex = 0; // "All Customers"
+            _selectedCustomer = null;
 
-            decimal totalPrice = filteredOrders.Sum(o => o.Price);
-            decimal totalProfit = filteredOrders.Sum(o => o.DeliveryFee);
-            decimal grandTotal = filteredOrders.Sum(o => o.TotalPrice);
+            var today = DateTime.Today;
+            var firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
 
-            txtTotalPrice.Text = totalPrice.ToString("N2");
-            txtTotalProfit.Text = totalProfit.ToString("N2");
-            txtGrandTotal.Text = grandTotal.ToString("N2");
+            dpStartDate.SelectedDate = firstDayOfMonth;
+            dpEndDate.SelectedDate = today;
+
+            _startDate = firstDayOfMonth;
+            _endDate = today;
+
+            txtSearch.Text = string.Empty;
+
+            ApplyFilters();
         }
 
         private void dgOrders_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -330,7 +454,7 @@ namespace ExpressServicePOS.UI.Views
             if (sender is Button button && button.Tag is int orderId)
             {
                 var result = MessageBox.Show("هل أنت متأكد من حذف هذا الطلب؟", "تأكيد الحذف",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+                        MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
@@ -449,6 +573,25 @@ namespace ExpressServicePOS.UI.Views
             };
             document.Blocks.Add(datePara);
 
+            // Add filter information
+            var filterPara = new Paragraph
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            if (_selectedCustomer != null)
+            {
+                filterPara.Inlines.Add(new Run($"العميل: {_selectedCustomer.Name} | "));
+            }
+
+            if (_startDate.HasValue && _endDate.HasValue)
+            {
+                filterPara.Inlines.Add(new Run($"الفترة: من {_startDate.Value:yyyy-MM-dd} إلى {_endDate.Value:yyyy-MM-dd}"));
+            }
+
+            document.Blocks.Add(filterPara);
+
             var summaryPara = new Paragraph
             {
                 BorderBrush = Brushes.LightGray,
@@ -465,6 +608,12 @@ namespace ExpressServicePOS.UI.Views
             summaryPara.Inlines.Add(new Run("   |   "));
             summaryPara.Inlines.Add(new Run("الإجمالي الكلي: ") { FontWeight = FontWeights.Bold });
             summaryPara.Inlines.Add(new Run(txtGrandTotal.Text));
+            summaryPara.Inlines.Add(new Run("   |   "));
+            summaryPara.Inlines.Add(new Run("تم التسليم: ") { FontWeight = FontWeights.Bold });
+            summaryPara.Inlines.Add(new Run(txtDeliveredCount.Text));
+            summaryPara.Inlines.Add(new Run("   |   "));
+            summaryPara.Inlines.Add(new Run("قيد التوصيل: ") { FontWeight = FontWeights.Bold });
+            summaryPara.Inlines.Add(new Run(txtPendingCount.Text));
 
             document.Blocks.Add(summaryPara);
 
@@ -476,43 +625,42 @@ namespace ExpressServicePOS.UI.Views
             };
 
             table.Columns.Add(new TableColumn { Width = new GridLength(40) });  // Order #
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(110) }); // Description
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });  // Customer
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });  // Recipient Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(110) }); // Address
             table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Date
             table.Columns.Add(new TableColumn { Width = new GridLength(140) }); // Status
             table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Amount
             table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Profit/Subscription
             table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Total
             table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Paid
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });  // Driver
 
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
 
-            headerRow.Cells.Add(CreateTableCell("معرف", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("اسم العميل", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("رقم الهاتف", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("العميل", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("هاتف المستلم", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("العنوان", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("تاريخ الطلب", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("تاريخ الدفع", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("الحالة", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("السعر", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الربح", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الإجمالي", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("الحالة", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("مدفوع", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("السائق", FontWeights.Bold));
 
             var headerRowGroup = new TableRowGroup();
             headerRowGroup.Rows.Add(headerRow);
             table.RowGroups.Add(headerRowGroup);
 
             var dataRowGroup = new TableRowGroup();
-            IEnumerable<OrderViewModel> itemsSource = dgOrders.ItemsSource as IEnumerable<OrderViewModel>;
 
-            if (itemsSource != null)
+            if (_filteredOrders != null)
             {
                 int rowIndex = 0;
-                foreach (var order in itemsSource)
+                foreach (var order in _filteredOrders)
                 {
                     var row = new TableRow();
 
@@ -521,17 +669,17 @@ namespace ExpressServicePOS.UI.Views
                         row.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
                     }
 
-                    row.Cells.Add(CreateTableCell(order.Id.ToString()));
                     row.Cells.Add(CreateTableCell(order.OrderNumber));
                     row.Cells.Add(CreateTableCell(order.CustomerName));
-                    row.Cells.Add(CreateTableCell(order.CustomerPhone));
+                    row.Cells.Add(CreateTableCell(order.RecipientPhone));
                     row.Cells.Add(CreateTableCell(order.CustomerAddress));
                     row.Cells.Add(CreateTableCell(order.OrderDate.ToString("yyyy-MM-dd")));
-                    row.Cells.Add(CreateTableCell(order.DatePaid.HasValue ? order.DatePaid.Value.ToString("yyyy-MM-dd") : "-"));
+                    row.Cells.Add(CreateTableCell(order.StatusText));
                     row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.ProfitDisplay));
                     row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
-                    row.Cells.Add(CreateTableCell(order.StatusText));
+                    row.Cells.Add(CreateTableCell(order.IsPaid ? "نعم" : "لا"));
+                    row.Cells.Add(CreateTableCell(order.DriverName));
 
                     dataRowGroup.Rows.Add(row);
                     rowIndex++;

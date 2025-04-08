@@ -19,6 +19,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -26,6 +27,7 @@
         <materialDesign:Card Grid.Row="0" Margin="20,20,20,10">
             <Grid Margin="16">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -43,7 +45,26 @@
                     <TextBlock Text="الإجمالي الكلي:" FontWeight="Bold" FontSize="16"/>
                     <TextBlock x:Name="txtGrandTotal" Text="0.00" FontSize="16"/>
                 </StackPanel>
-                <Button Grid.Column="3" x:Name="btnPrintTable" Content="طباعة الجدول" 
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="إحصائيات الطلبات:" FontWeight="Bold" FontSize="16"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="تم التسليم:" FontSize="14"/>
+                        <TextBlock Grid.Column="1" x:Name="txtDeliveredCount" Text="0" FontSize="14" FontWeight="Bold" Foreground="#27ae60"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="قيد التوصيل:" FontSize="14"/>
+                        <TextBlock Grid.Column="1" x:Name="txtPendingCount" Text="0" FontSize="14" FontWeight="Bold" Foreground="#e74c3c"/>
+                    </Grid>
+                </StackPanel>
+                <Button Grid.Column="4" x:Name="btnPrintTable" Content="طباعة الجدول" 
                         Click="btnPrintTable_Click" Width="120" Height="40" 
                         Background="#3498db" Foreground="White">
                     <Button.Resources>
@@ -55,8 +76,59 @@
             </Grid>
         </materialDesign:Card>
 
-        <!-- Search and Add Order -->
+        <!-- Customer Filter & Date Range -->
         <Grid Grid.Row="1" Margin="20,0,20,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Customer Selection -->
+            <Grid Grid.Column="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="العميل:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <ComboBox Grid.Column="1" x:Name="cmbCustomers" DisplayMemberPath="Name" 
+                          IsEditable="True" StaysOpenOnEdit="True"
+                          IsTextSearchEnabled="True" TextSearch.TextPath="Name"
+                          SelectionChanged="cmbCustomers_SelectionChanged"/>
+            </Grid>
+
+            <!-- Date Range -->
+            <Grid Grid.Column="1" Margin="10,0,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="من:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <DatePicker Grid.Column="1" x:Name="dpStartDate" SelectedDateChanged="DateFilter_Changed"/>
+            </Grid>
+
+            <Grid Grid.Column="2" Margin="10,0,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="إلى:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <DatePicker Grid.Column="1" x:Name="dpEndDate" SelectedDateChanged="DateFilter_Changed"/>
+            </Grid>
+
+            <Button Grid.Column="3" Content="إعادة تعيين الفلتر" Width="120" Height="30" 
+                    Background="#95a5a6" Foreground="White" Click="btnResetFilter_Click" Margin="10,0,0,0">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="5"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </Grid>
+
+        <!-- Search and Add Order -->
+        <Grid Grid.Row="2" Margin="20,0,20,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -64,7 +136,7 @@
             </Grid.ColumnDefinitions>
             <TextBox Grid.Column="0" x:Name="txtSearch" Margin="0,0,10,0" Height="40" 
                      VerticalContentAlignment="Center" KeyUp="txtSearch_KeyUp" 
-                     materialDesign:HintAssist.Hint="بحث بالاسم، رقم الهاتف، رقم الطلب، السائق، رقم السيارة..."/>
+                     materialDesign:HintAssist.Hint="بحث بالاسم، رقم الهاتف، رقم الطلب، السائق، رقم المستلم..."/>
             <Button Grid.Column="1" Content="بحث" Width="100" Height="40" Background="#95a5a6" 
                     Foreground="White" Click="btnSearch_Click" Margin="0,0,10,0">
                 <Button.Resources>
@@ -84,22 +156,22 @@
         </Grid>
 
         <!-- Orders List -->
-        <Border Grid.Row="2" BorderBrush="#ddd" BorderThickness="1" Margin="20,0,20,20">
+        <Border Grid.Row="3" BorderBrush="#ddd" BorderThickness="1" Margin="20,0,20,20">
             <DataGrid x:Name="dgOrders" AutoGenerateColumns="False" CanUserAddRows="False" 
                       CanUserDeleteRows="False" IsReadOnly="True" SelectionMode="Single"
                       MouseDoubleClick="dgOrders_MouseDoubleClick">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="رقم الطلب" Binding="{Binding OrderNumber}" Width="90"/>
-                    <DataGridTextColumn Header="اسم العميل" Binding="{Binding CustomerName}" Width="140"/>
-                    <DataGridTextColumn Header="العنوان" Binding="{Binding CustomerAddress}" Width="180"/>
-                    <DataGridTextColumn Header="تاريخ الطلب" Binding="{Binding OrderDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="110"/>
-                    <DataGridTextColumn Header="تاريخ الدفع" Binding="{Binding DatePaid, StringFormat=\{0:yyyy-MM-dd\}}" Width="110"/>
+                    <DataGridTextColumn Header="رقم الطلب" Binding="{Binding OrderNumber}" Width="80"/>
+                    <DataGridTextColumn Header="اسم العميل" Binding="{Binding CustomerName}" Width="130"/>
+                    <DataGridTextColumn Header="هاتف المستلم" Binding="{Binding RecipientPhone}" Width="100"/>
+                    <DataGridTextColumn Header="العنوان" Binding="{Binding CustomerAddress}" Width="150"/>
+                    <DataGridTextColumn Header="تاريخ الطلب" Binding="{Binding OrderDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
+                    <DataGridTextColumn Header="تاريخ الدفع" Binding="{Binding DatePaid, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
                     <DataGridTextColumn Header="حالة الطلب" Binding="{Binding StatusText}" Width="100"/>
-                    <DataGridTextColumn Header="المبلغ" Binding="{Binding Price, StringFormat=\{0:N2\}}" Width="85"/>
-                    <DataGridTextColumn Header="الربح" Binding="{Binding ProfitDisplay}" Width="120"/>
-                    <DataGridTextColumn Header="الإجمالي" Binding="{Binding TotalPrice, StringFormat=\{0:N2\}}" Width="85"/>
-                    <DataGridTextColumn Header="السائق" Binding="{Binding DriverName}" Width="120"/>
-                    <DataGridTextColumn Header="رقم السيارة" Binding="{Binding DriverVehicleNumber}" Width="100"/>
+                    <DataGridTextColumn Header="المبلغ" Binding="{Binding Price, StringFormat=\{0:N2\}}" Width="75"/>
+                    <DataGridTextColumn Header="الربح" Binding="{Binding ProfitDisplay}" Width="100"/>
+                    <DataGridTextColumn Header="الإجمالي" Binding="{Binding TotalPrice, StringFormat=\{0:N2\}}" Width="75"/>
+                    <DataGridTextColumn Header="السائق" Binding="{Binding DriverName}" Width="100"/>
                     <DataGridTemplateColumn Header="إجراءات" Width="200">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
