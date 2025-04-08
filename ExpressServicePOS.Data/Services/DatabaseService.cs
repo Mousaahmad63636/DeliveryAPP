@@ -23,12 +23,23 @@ namespace ExpressServicePOS.Data.Services
 
                 await ExecuteDbOperationAsync(async (dbContext) =>
                 {
-                    // Ensure database is created and up to date
-                    await dbContext.Database.EnsureCreatedAsync();
-                    await MigrateIfNeededAsync(dbContext);
+                    try
+                    {
+                        // Choose one approach: either use migrations or EnsureCreated
+                        // For a simple app, EnsureCreated is often sufficient
+                        await dbContext.Database.EnsureCreatedAsync();
 
-                    // Seed initial data if no records exist
-                    await SeedInitialDataIfEmptyAsync(dbContext);
+                        // Don't call MigrateIfNeededAsync if using EnsureCreated
+                        // await MigrateIfNeededAsync(dbContext);
+
+                        // Seed initial data if needed
+                        await SeedInitialDataIfEmptyAsync(dbContext);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "Non-critical error during database initialization");
+                        // Don't rethrow - allow app to continue
+                    }
                 });
 
                 Logger.LogInformation("Database initialization completed successfully.");

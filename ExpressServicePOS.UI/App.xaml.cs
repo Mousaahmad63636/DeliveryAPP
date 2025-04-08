@@ -114,38 +114,28 @@ namespace ExpressServicePOS.UI
                 {
                     try
                     {
-                        var dbInitializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
-                        dbInitializer.Initialize();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Error initializing database");
-                        MessageBox.Show($"خطأ في تهيئة قاعدة البيانات: {ex.Message}\n\nتأكد من تشغيل SQL Server وإنشاء قاعدة البيانات.",
-                            "خطأ في قاعدة البيانات", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-
-                    try
-                    {
+                        // Use only DatabaseService (remove the dbInitializer section)
                         var dbService = scope.ServiceProvider.GetRequiredService<DatabaseService>();
                         await dbService.InitializeDatabaseAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Error in database service initialization");
-                        MessageBox.Show($"خطأ في خدمة قاعدة البيانات: {ex.Message}",
-                            "خطأ في قاعدة البيانات", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
 
-                    try
-                    {
-                        var currencyService = scope.ServiceProvider.GetRequiredService<CurrencyService>();
-                        await currencyService.LoadSettingsAsync();
+                        // Load other services...
+                        try
+                        {
+                            var currencyService = scope.ServiceProvider.GetRequiredService<CurrencyService>();
+                            await currencyService.LoadSettingsAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "Error loading currency settings");
+                            MessageBox.Show($"خطأ في تحميل إعدادات العملة: {ex.Message}",
+                                "خطأ في الإعدادات", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Log.Error(ex, "Error loading currency settings");
-                        MessageBox.Show($"خطأ في تحميل إعدادات العملة: {ex.Message}",
-                            "خطأ في الإعدادات", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        Log.Error(ex, "Error in database initialization");
+                        MessageBox.Show($"خطأ في قاعدة البيانات: {ex.Message}",
+                            "خطأ في قاعدة البيانات", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
 
@@ -161,7 +151,6 @@ namespace ExpressServicePOS.UI
                 Shutdown(-1);
             }
         }
-
         protected override void OnExit(ExitEventArgs e)
         {
             Log.CloseAndFlush();
