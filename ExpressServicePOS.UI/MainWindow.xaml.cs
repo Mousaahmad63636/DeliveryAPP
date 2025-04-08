@@ -107,7 +107,10 @@ namespace ExpressServicePOS.UI
         {
             MainFrame.Navigate(new ImportExportPage());
         }
-
+        private void btnSubscriptions_Click(object sender, RoutedEventArgs e)
+        {
+            MainFrame.Navigate(new SubscriptionsPage());
+        }
         private async void btnTestConnection_Click(object sender, RoutedEventArgs e)
         {
             try

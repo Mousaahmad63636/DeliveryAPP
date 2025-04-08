@@ -10,7 +10,7 @@ namespace ExpressServicePOS.Core.Models
         public int CustomerId { get; set; }
         public virtual Customer? Customer { get; set; }
 
-        // Add Driver relationship
+        // Driver relationship
         public int? DriverId { get; set; }
         public virtual Driver? Driver { get; set; }
 
@@ -25,7 +25,7 @@ namespace ExpressServicePOS.Core.Models
         public string Notes { get; set; } = string.Empty;
         public bool IsPaid { get; set; }
 
-        // Add currency properties
+        // Currency properties
         public string Currency { get; set; } = "USD"; // Default currency (USD or LBP)
         public decimal ExchangeRate { get; set; } = 1; // Exchange rate at the time of order creation
 
@@ -42,6 +42,22 @@ namespace ExpressServicePOS.Core.Models
         public bool IsBreakable { get; set; } = false;
         public bool IsReplacement { get; set; } = false;
         public bool IsReturned { get; set; } = false;
+
+        // Subscription-related properties
+        /// <summary>
+        /// Indicates whether this order is covered by a monthly subscription.
+        /// </summary>
+        public bool IsCoveredBySubscription { get; set; } = false;
+
+        /// <summary>
+        /// Optional ID of the subscription that covers this order.
+        /// </summary>
+        public int? SubscriptionId { get; set; }
+
+        /// <summary>
+        /// Navigation property to the subscription that covers this order.
+        /// </summary>
+        public virtual MonthlySubscription? Subscription { get; set; }
 
         // Computed properties
         public decimal TotalPrice => Price + DeliveryFee;

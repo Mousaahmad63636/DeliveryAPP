@@ -66,6 +66,16 @@ namespace ExpressServicePOS.Data.Context
         public DbSet<ReceiptTemplate> ReceiptTemplates { get; set; }
 
         /// <summary>
+        /// Gets or sets the monthly subscriptions dataset.
+        /// </summary>
+        public DbSet<MonthlySubscription> MonthlySubscriptions { get; set; }
+
+        /// <summary>
+        /// Gets or sets the subscription payments dataset.
+        /// </summary>
+        public DbSet<SubscriptionPayment> SubscriptionPayments { get; set; }
+
+        /// <summary>
         /// Optional configuration to suppress warning about dynamic dates in seed data.
         /// </summary>
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -93,10 +103,6 @@ namespace ExpressServicePOS.Data.Context
                 entity.Property(e => e.Address).HasMaxLength(200);
                 entity.Property(e => e.Phone).HasMaxLength(20);
             });
-
-            // Configure Order entity
-            // File: ExpressServicePOS.Data.Context/AppDbContext.cs
-            // Update the OnModelCreating method with this Order entity configuration
 
             // Configure Order entity
             modelBuilder.Entity<Order>(entity =>
@@ -133,6 +139,13 @@ namespace ExpressServicePOS.Data.Context
                     .HasForeignKey(e => e.DriverId)
                     .IsRequired(false)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                // Add relationship with MonthlySubscription
+                entity.HasOne(o => o.Subscription)
+                    .WithMany()
+                    .HasForeignKey(o => o.SubscriptionId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             // Configure Driver entity
@@ -225,6 +238,37 @@ namespace ExpressServicePOS.Data.Context
                         LastUpdated = new DateTime(2025, 4, 1)
                     }
                 );
+            });
+
+            // Configure MonthlySubscription entity
+            modelBuilder.Entity<MonthlySubscription>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Currency).HasMaxLength(3).HasDefaultValue("USD");
+                entity.Property(e => e.Notes).HasMaxLength(500);
+
+                // Configure relationship with Customer
+                entity.HasOne(e => e.Customer)
+                    .WithMany(c => c.Subscriptions)
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure SubscriptionPayment entity
+            modelBuilder.Entity<SubscriptionPayment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.PaymentMethod).HasMaxLength(50);
+                entity.Property(e => e.Currency).HasMaxLength(3).HasDefaultValue("USD");
+                entity.Property(e => e.Notes).HasMaxLength(500);
+
+                // Configure relationship with MonthlySubscription
+                entity.HasOne(e => e.Subscription)
+                    .WithMany(s => s.Payments)
+                    .HasForeignKey(e => e.SubscriptionId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

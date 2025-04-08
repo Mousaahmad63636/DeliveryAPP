@@ -110,6 +110,32 @@ namespace ExpressServicePOS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "MonthlySubscriptions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CustomerId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    DayOfMonth = table.Column<int>(type: "int", nullable: false),
+                    StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, defaultValue: "USD")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlySubscriptions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MonthlySubscriptions_Customers_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "Customers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Orders",
                 columns: table => new
                 {
@@ -139,7 +165,9 @@ namespace ExpressServicePOS.Data.Migrations
                     PaymentMethod = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     IsBreakable = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     IsReplacement = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
-                    IsReturned = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
+                    IsReturned = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    IsCoveredBySubscription = table.Column<bool>(type: "bit", nullable: false),
+                    SubscriptionId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -156,6 +184,37 @@ namespace ExpressServicePOS.Data.Migrations
                         principalTable: "Drivers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Orders_MonthlySubscriptions_SubscriptionId",
+                        column: x => x.SubscriptionId,
+                        principalTable: "MonthlySubscriptions",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SubscriptionPayments",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SubscriptionId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    PaymentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PeriodStartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PeriodEndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PaymentMethod = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, defaultValue: "USD"),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SubscriptionPayments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SubscriptionPayments_MonthlySubscriptions_SubscriptionId",
+                        column: x => x.SubscriptionId,
+                        principalTable: "MonthlySubscriptions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.InsertData(
@@ -174,6 +233,11 @@ namespace ExpressServicePOS.Data.Migrations
                 values: new object[] { 1, "طريق المطار - نزلة عين الدولة", "81 169919 - 03 169919", "شكراً لاختياركم خدمة إكسبرس", "EXPRESS SERVICE TEAM", new DateTime(2025, 4, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "", "#e74c3c", "#d5f5e3", true, true });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MonthlySubscriptions_CustomerId",
+                table: "MonthlySubscriptions",
+                column: "CustomerId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Orders_CustomerId",
                 table: "Orders",
                 column: "CustomerId");
@@ -182,6 +246,16 @@ namespace ExpressServicePOS.Data.Migrations
                 name: "IX_Orders_DriverId",
                 table: "Orders",
                 column: "DriverId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Orders_SubscriptionId",
+                table: "Orders",
+                column: "SubscriptionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SubscriptionPayments_SubscriptionId",
+                table: "SubscriptionPayments",
+                column: "SubscriptionId");
         }
 
         /// <inheritdoc />
@@ -200,10 +274,16 @@ namespace ExpressServicePOS.Data.Migrations
                 name: "ReceiptTemplates");
 
             migrationBuilder.DropTable(
-                name: "Customers");
+                name: "SubscriptionPayments");
 
             migrationBuilder.DropTable(
                 name: "Drivers");
+
+            migrationBuilder.DropTable(
+                name: "MonthlySubscriptions");
+
+            migrationBuilder.DropTable(
+                name: "Customers");
         }
     }
 }

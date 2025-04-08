@@ -1,0 +1,118 @@
+﻿<!-- File: ExpressServicePOS.UI/Views/SubscriptionReport.xaml -->
+<Page x:Class="ExpressServicePOS.UI.Views.SubscriptionReport"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      mc:Ignorable="d" 
+      d:DesignHeight="600" d:DesignWidth="800"
+      Title="تقرير الاشتراكات الشهرية"
+      FlowDirection="RightToLeft">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <materialDesign:ColorZone Grid.Row="0" Mode="PrimaryDark" Padding="16" Margin="10">
+            <StackPanel>
+                <TextBlock Text="تقرير الاشتراكات الشهرية" FontSize="22" FontWeight="Bold"/>
+                <TextBlock x:Name="txtReportDate" Text="تاريخ التقرير: " FontSize="14" Margin="0,5,0,0"/>
+            </StackPanel>
+        </materialDesign:ColorZone>
+
+        <!-- Summary Cards -->
+        <Grid Grid.Row="1" Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <materialDesign:Card Grid.Column="0" Margin="5" UniformCornerRadius="8">
+                <materialDesign:ColorZone Mode="PrimaryMid" CornerRadius="8">
+                    <StackPanel Margin="15">
+                        <TextBlock Text="الاشتراكات النشطة" FontSize="14" Foreground="White"/>
+                        <TextBlock x:Name="txtActiveSubscriptions" Text="0" FontSize="36" FontWeight="Bold" 
+                                   Foreground="White" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </materialDesign:ColorZone>
+            </materialDesign:Card>
+
+            <materialDesign:Card Grid.Column="1" Margin="5" UniformCornerRadius="8">
+                <materialDesign:ColorZone Mode="SecondaryMid" CornerRadius="8">
+                    <StackPanel Margin="15">
+                        <TextBlock Text="الاشتراكات الغير نشطة" FontSize="14" Foreground="White"/>
+                        <TextBlock x:Name="txtInactiveSubscriptions" Text="0" FontSize="36" FontWeight="Bold" 
+                                   Foreground="White" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </materialDesign:ColorZone>
+            </materialDesign:Card>
+
+            <materialDesign:Card Grid.Column="2" Margin="5" UniformCornerRadius="8">
+                <materialDesign:ColorZone Background="#4CAF50" CornerRadius="8">
+                    <StackPanel Margin="15">
+                        <TextBlock Text="الإيرادات الشهرية (USD)" FontSize="14" Foreground="White"/>
+                        <TextBlock x:Name="txtMonthlyRevenueUSD" Text="0.00 $" FontSize="30" FontWeight="Bold" 
+                                   Foreground="White" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </materialDesign:ColorZone>
+            </materialDesign:Card>
+
+            <materialDesign:Card Grid.Column="3" Margin="5" UniformCornerRadius="8">
+                <materialDesign:ColorZone Background="#9C27B0" CornerRadius="8">
+                    <StackPanel Margin="15">
+                        <TextBlock Text="الإيرادات الشهرية (ل.ل)" FontSize="14" Foreground="White"/>
+                        <TextBlock x:Name="txtMonthlyRevenueLBP" Text="0" FontSize="30" FontWeight="Bold" 
+                                   Foreground="White" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </materialDesign:ColorZone>
+            </materialDesign:Card>
+        </Grid>
+
+        <!-- Subscriptions Table -->
+        <materialDesign:Card Grid.Row="2" Margin="10">
+            <StackPanel Margin="15">
+                <TextBlock Text="قائمة الاشتراكات النشطة" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                <DataGrid x:Name="dgSubscriptions" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="العميل" Binding="{Binding Customer.Name}" Width="150"/>
+                        <DataGridTextColumn Header="رقم الهاتف" Binding="{Binding Customer.Phone}" Width="100"/>
+                        <DataGridTextColumn Header="المبلغ" Binding="{Binding AmountFormatted}" Width="100"/>
+                        <DataGridTextColumn Header="تاريخ البدء" Binding="{Binding StartDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
+                        <DataGridTextColumn Header="يوم الاستحقاق" Binding="{Binding DayOfMonth}" Width="60"/>
+                        <DataGridTextColumn Header="الدفعة القادمة" Binding="{Binding NextPaymentDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
+                        <DataGridTextColumn Header="الحالة" Binding="{Binding StatusText}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </materialDesign:Card>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,20">
+            <Button x:Name="btnPrint" Content="طباعة التقرير" Background="#3498db" Foreground="White"
+                    Width="150" Height="40" Click="btnPrint_Click" Margin="0,0,10,0">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="5"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+            <Button x:Name="btnBack" Content="رجوع" Background="#95a5a6" Foreground="White"
+                    Width="100" Height="40" Click="btnBack_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="5"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Page>

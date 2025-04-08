@@ -88,6 +88,7 @@ namespace ExpressServicePOS.UI
             services.AddScoped<PrintService>();
             services.AddScoped<CurrencyService>();
             services.AddScoped<BackupService>();
+            services.AddScoped<SubscriptionService>();
 
             // Register pages
             services.AddTransient<MainWindow>();
@@ -99,6 +100,8 @@ namespace ExpressServicePOS.UI
             services.AddTransient<ConnectionTestPage>();
             services.AddTransient<DriversPage>();
             services.AddTransient<ImportExportPage>();
+            services.AddTransient<SubscriptionsPage>();
+            services.AddTransient<SubscriptionReport>();
         }
 
         protected override async void OnStartup(StartupEventArgs e)

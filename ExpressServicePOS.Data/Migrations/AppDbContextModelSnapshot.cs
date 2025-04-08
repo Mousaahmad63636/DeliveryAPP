@@ -223,6 +223,51 @@ namespace ExpressServicePOS.Data.Migrations
                     b.ToTable("Drivers");
                 });
 
+            modelBuilder.Entity("ExpressServicePOS.Core.Models.MonthlySubscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)")
+                        .HasDefaultValue("USD");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DayOfMonth")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("MonthlySubscriptions");
+                });
+
             modelBuilder.Entity("ExpressServicePOS.Core.Models.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -274,6 +319,9 @@ namespace ExpressServicePOS.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<bool>("IsCoveredBySubscription")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsPaid")
                         .HasColumnType("bit");
@@ -337,11 +385,16 @@ namespace ExpressServicePOS.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int?>("SubscriptionId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("DriverId");
+
+                    b.HasIndex("SubscriptionId");
 
                     b.ToTable("Orders");
                 });
@@ -418,6 +471,64 @@ namespace ExpressServicePOS.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ExpressServicePOS.Core.Models.SubscriptionPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)")
+                        .HasDefaultValue("USD");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("PeriodEndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodStartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SubscriptionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubscriptionId");
+
+                    b.ToTable("SubscriptionPayments");
+                });
+
+            modelBuilder.Entity("ExpressServicePOS.Core.Models.MonthlySubscription", b =>
+                {
+                    b.HasOne("ExpressServicePOS.Core.Models.Customer", "Customer")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("ExpressServicePOS.Core.Models.Order", b =>
                 {
                     b.HasOne("ExpressServicePOS.Core.Models.Customer", "Customer")
@@ -431,19 +542,44 @@ namespace ExpressServicePOS.Data.Migrations
                         .HasForeignKey("DriverId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("ExpressServicePOS.Core.Models.MonthlySubscription", "Subscription")
+                        .WithMany()
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("Customer");
 
                     b.Navigation("Driver");
+
+                    b.Navigation("Subscription");
+                });
+
+            modelBuilder.Entity("ExpressServicePOS.Core.Models.SubscriptionPayment", b =>
+                {
+                    b.HasOne("ExpressServicePOS.Core.Models.MonthlySubscription", "Subscription")
+                        .WithMany("Payments")
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Subscription");
                 });
 
             modelBuilder.Entity("ExpressServicePOS.Core.Models.Customer", b =>
                 {
                     b.Navigation("Orders");
+
+                    b.Navigation("Subscriptions");
                 });
 
             modelBuilder.Entity("ExpressServicePOS.Core.Models.Driver", b =>
                 {
                     b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("ExpressServicePOS.Core.Models.MonthlySubscription", b =>
+                {
+                    b.Navigation("Payments");
                 });
 #pragma warning restore 612, 618
         }

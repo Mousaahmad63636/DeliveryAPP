@@ -18,13 +18,10 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Header -->
             <TextBlock Grid.Row="0" Text="تعديل بيانات الطلب" 
                      FontSize="24" FontWeight="Bold" Margin="0,0,0,15"/>
 
-            <!-- Edit Form -->
             <StackPanel Grid.Row="1">
-                <!-- Basic Information -->
                 <GroupBox Header="معلومات الطلب الأساسية" Margin="0,10,0,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -37,7 +34,6 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Row 1 -->
                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,5,0">
                             <TextBlock Text="رقم الطلب"/>
                             <TextBox x:Name="txtOrderNumber" IsReadOnly="True" Margin="0,5,0,10"/>
@@ -47,7 +43,6 @@
                             <DatePicker x:Name="dtpOrderDate" Margin="0,5,0,10"/>
                         </StackPanel>
 
-                        <!-- Row 2 -->
                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,5,0">
                             <TextBlock Text="وصف الطلب"/>
                             <TextBox x:Name="txtOrderDescription" Margin="0,5,0,10"/>
@@ -65,7 +60,6 @@
                             </ComboBox>
                         </StackPanel>
 
-                        <!-- Row 3 -->
                         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
                             <TextBlock Text="ملاحظات"/>
                             <TextBox x:Name="txtNotes" TextWrapping="Wrap" AcceptsReturn="True" 
@@ -74,20 +68,35 @@
                     </Grid>
                 </GroupBox>
 
-                <!-- Customer Information -->
-                <GroupBox Header="معلومات العميل" Margin="0,10,0,10">
+                <GroupBox Header="معلومات المرسل" Margin="0,10,0,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                        <ComboBox x:Name="cmbCustomers" DisplayMemberPath="Name" Margin="0,0,5,0"/>
-                        <Button Grid.Column="1" Content="عميل جديد" Width="100" Click="btnNewCustomer_Click"/>
+                        <ComboBox Grid.Row="0" Grid.Column="0" x:Name="cmbCustomers" DisplayMemberPath="Name" Margin="0,0,5,0"
+                                  SelectionChanged="cmbCustomers_SelectionChanged"/>
+                        <Button Grid.Row="0" Grid.Column="1" Content="مرسل جديد" Width="100" Click="btnNewCustomer_Click"/>
+
+                        <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" x:Name="lblSubscriptionStatus" 
+                              Content="اشتراك شهري نشط" 
+                              Background="#2ecc71" Foreground="White" FontWeight="Bold"
+                              HorizontalAlignment="Left" Padding="10,5" Margin="0,5,0,0"
+                              Visibility="Collapsed">
+                            <Label.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="5"/>
+                                </Style>
+                            </Label.Resources>
+                        </Label>
                     </Grid>
                 </GroupBox>
 
-                <!-- Driver Information -->
                 <GroupBox Header="معلومات السائق" Margin="0,10,0,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -106,7 +115,6 @@
                     </Grid>
                 </GroupBox>
 
-                <!-- Receipt Information -->
                 <GroupBox Header="معلومات الإيصال" Margin="0,10,0,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -119,7 +127,6 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Row 1 -->
                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,5,0">
                             <TextBlock Text="المرسل"/>
                             <TextBox x:Name="txtSenderName" Margin="0,5,0,10"/>
@@ -129,7 +136,6 @@
                             <TextBox x:Name="txtRecipientName" Margin="0,5,0,10"/>
                         </StackPanel>
 
-                        <!-- Row 2 -->
                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,5,0">
                             <TextBlock Text="هاتف المرسل"/>
                             <TextBox x:Name="txtSenderPhone" Margin="0,5,0,10"/>
@@ -139,7 +145,6 @@
                             <TextBox x:Name="txtRecipientPhone" Margin="0,5,0,10"/>
                         </StackPanel>
 
-                        <!-- Row 3 -->
                         <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,5,0">
                             <TextBlock Text="موقع الاستلام"/>
                             <TextBox x:Name="txtPickupLocation" Margin="0,5,0,10"/>
@@ -151,7 +156,6 @@
                     </Grid>
                 </GroupBox>
 
-                <!-- Pricing Information -->
                 <GroupBox Header="معلومات التسعير" Margin="0,10,0,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -163,7 +167,6 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Row 1 -->
                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,5,0">
                             <TextBlock Text="السعر"/>
                             <TextBox x:Name="txtPrice" Margin="0,5,0,10" TextChanged="txtPrice_TextChanged"/>
@@ -173,7 +176,6 @@
                             <TextBox x:Name="txtDeliveryFee" Margin="0,5,0,10" TextChanged="txtDeliveryFee_TextChanged"/>
                         </StackPanel>
 
-                        <!-- Row 2 -->
                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,5,0">
                             <TextBlock Text="العملة"/>
                             <ComboBox x:Name="cmbCurrency" Margin="0,5,0,0">
@@ -188,11 +190,9 @@
                     </Grid>
                 </GroupBox>
 
-                <!-- Payment Status -->
                 <CheckBox x:Name="chkIsPaid" Content="تم الدفع" Margin="0,10,0,0"/>
             </StackPanel>
 
-            <!-- Action Buttons -->
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
                 <Button x:Name="btnSave" Content="حفظ" Width="150" Height="40" 
                         Background="#27ae60" Foreground="White" Margin="0,0,10,0"

@@ -1,4 +1,5 @@
-﻿using System;
+﻿// File: ExpressServicePOS.UI.Converters/BoolToActiveConverter.cs
+using System;
 using System.Globalization;
 using System.Windows.Data;
 

@@ -20,7 +20,7 @@ namespace ExpressServicePOS.UI.Views
         private readonly ILogger<NewOrderPage> _logger;
         private Customer _selectedCustomer;
         private Driver _selectedDriver;
-        // Random instance removed as we no longer need it
+        private MonthlySubscription _activeSubscription;
 
         public NewOrderPage()
         {
@@ -31,7 +31,6 @@ namespace ExpressServicePOS.UI.Views
             _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<NewOrderPage>>();
 
             dtpOrderDate.SelectedDate = DateTime.Now;
-            // GenerateOrderNumber method call removed
 
             LoadCustomersAsync();
             LoadDriversAsync();
@@ -42,8 +41,6 @@ namespace ExpressServicePOS.UI.Views
         {
             _serviceScope?.Dispose();
         }
-
-        // GenerateOrderNumber method removed
 
         // Helper methods to call async methods from constructor
         private async void LoadCustomersAsync()
@@ -90,14 +87,48 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private void cmbCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void cmbCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _selectedCustomer = cmbCustomers.SelectedItem as Customer;
             if (_selectedCustomer != null)
             {
-                txtRecipientName.Text = _selectedCustomer.Name;
-                txtRecipientPhone.Text = _selectedCustomer.Phone;
+                // Change this: populate sender fields instead of recipient fields
+                txtSenderName.Text = _selectedCustomer.Name;
+                txtSenderPhone.Text = _selectedCustomer.Phone;
                 txtPickupLocation.Text = _selectedCustomer.Address;
+
+                // Check for active subscription
+                try
+                {
+                    var subscriptionService = _serviceScope.ServiceProvider.GetRequiredService<SubscriptionService>();
+                    _activeSubscription = await subscriptionService.GetActiveSubscriptionForCustomerAsync(_selectedCustomer.Id);
+
+                    // Update UI to reflect subscription status
+                    if (_activeSubscription != null)
+                    {
+                        string currency = _activeSubscription.Currency == "USD" ? "$" : "ل.ل";
+                        lblSubscriptionStatus.Content = $"اشتراك شهري نشط - {_activeSubscription.Amount:N2} {currency}";
+                        lblSubscriptionStatus.Visibility = Visibility.Visible;
+
+                        // If customer has subscription, disable delivery fee
+                        txtDeliveryFee.Text = "0.00";
+                        txtDeliveryFee.IsEnabled = false;
+
+                        // Add tooltip to explain why delivery fee is disabled
+                        txtDeliveryFee.ToolTip = "لا يتم احتساب رسوم توصيل للعملاء ذوي الاشتراك الشهري النشط";
+                    }
+                    else
+                    {
+                        lblSubscriptionStatus.Visibility = Visibility.Collapsed;
+                        txtDeliveryFee.IsEnabled = true;
+                        txtDeliveryFee.ToolTip = null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error checking customer subscription status");
+                    // Don't show error message to user, just log it
+                }
             }
         }
 
@@ -330,7 +361,11 @@ namespace ExpressServicePOS.UI.Views
                         PaymentMethod = (cmbPaymentMethod.SelectedItem as ComboBoxItem)?.Content as string ?? "نقدي",
                         IsBreakable = chkBreakable.IsChecked ?? false,
                         IsReplacement = chkReplacement.IsChecked ?? false,
-                        IsReturned = chkReturned.IsChecked ?? false
+                        IsReturned = chkReturned.IsChecked ?? false,
+
+                        // Add subscription information
+                        IsCoveredBySubscription = _activeSubscription != null,
+                        SubscriptionId = _activeSubscription?.Id
                     };
 
                     dbContext.Orders.Add(order);

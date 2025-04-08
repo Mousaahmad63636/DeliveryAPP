@@ -1,7 +1,10 @@
-﻿using ExpressServicePOS.Core.Models;
+﻿// File: ExpressServicePOS.UI/Views/OrderEditDialog.xaml.cs
+using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
+using ExpressServicePOS.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Windows;
@@ -14,8 +17,10 @@ namespace ExpressServicePOS.UI.Views
         private readonly Order _order;
         private readonly IServiceScope _serviceScope;
         private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+        private readonly ILogger<OrderEditDialog> _logger;
         private Customer _selectedCustomer;
         private Driver _selectedDriver;
+        private MonthlySubscription _activeSubscription;
 
         public OrderEditDialog(Order order)
         {
@@ -25,6 +30,10 @@ namespace ExpressServicePOS.UI.Views
 
             _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
             _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+            _logger = _serviceScope.ServiceProvider.GetService<ILogger<OrderEditDialog>>();
+
+            // Initialize subscription label
+            lblSubscriptionStatus.Visibility = Visibility.Collapsed;
 
             LoadCustomers();
             LoadDrivers();
@@ -115,6 +124,25 @@ namespace ExpressServicePOS.UI.Views
             txtDeliveryFee.Text = _order.DeliveryFee.ToString("N2");
             txtTotal.Text = _order.TotalPrice.ToString("N2");
 
+            // Handle subscription info
+            if (_order.IsCoveredBySubscription && _order.Subscription != null)
+            {
+                _activeSubscription = _order.Subscription;
+                string currency = _activeSubscription.Currency == "USD" ? "$" : "ل.ل";
+                lblSubscriptionStatus.Content = $"اشتراك شهري نشط - {_activeSubscription.Amount:N2} {currency}";
+                lblSubscriptionStatus.Visibility = Visibility.Visible;
+
+                // If order is covered by subscription, disable delivery fee
+                txtDeliveryFee.IsEnabled = false;
+                txtDeliveryFee.ToolTip = "لا يتم احتساب رسوم توصيل للعملاء ذوي الاشتراك الشهري النشط";
+            }
+            else
+            {
+                lblSubscriptionStatus.Visibility = Visibility.Collapsed;
+                txtDeliveryFee.IsEnabled = true;
+                txtDeliveryFee.ToolTip = null;
+            }
+
             if (_order.Currency == "USD")
                 cmbCurrency.SelectedIndex = 0;
             else if (_order.Currency == "LBP")
@@ -125,17 +153,53 @@ namespace ExpressServicePOS.UI.Views
             chkIsPaid.IsChecked = _order.IsPaid;
         }
 
-        private async void btnNewCustomer_Click(object sender, RoutedEventArgs e)
+        // File: ExpressServicePOS.UI/Views/OrderEditDialog.xaml.cs
+        // Update cmbCustomers_SelectionChanged method:
+
+        private async void cmbCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var dialog = new CustomerDialog();
-            if (dialog.ShowDialog() == true)
+            if (cmbCustomers.SelectedItem is Customer selectedCustomer)
             {
-                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                _selectedCustomer = selectedCustomer;
+
+                // Update this to populate sender fields instead of recipient fields
+                txtSenderName.Text = _selectedCustomer.Name;
+                txtSenderPhone.Text = _selectedCustomer.Phone;
+                txtPickupLocation.Text = _selectedCustomer.Address;
+
+                // Check for active subscription
+                try
                 {
-                    dbContext.Customers.Add(dialog.Customer);
-                    await dbContext.SaveChangesAsync();
+                    var subscriptionService = _serviceScope.ServiceProvider.GetRequiredService<SubscriptionService>();
+                    _activeSubscription = await subscriptionService.GetActiveSubscriptionForCustomerAsync(_selectedCustomer.Id);
+
+                    // Update UI to reflect subscription status
+                    if (_activeSubscription != null)
+                    {
+                        string currency = _activeSubscription.Currency == "USD" ? "$" : "ل.ل";
+                        lblSubscriptionStatus.Content = $"اشتراك شهري نشط - {_activeSubscription.Amount:N2} {currency}";
+                        lblSubscriptionStatus.Visibility = Visibility.Visible;
+
+                        // If customer has subscription, disable delivery fee
+                        txtDeliveryFee.Text = "0.00";
+                        txtDeliveryFee.IsEnabled = false;
+
+                        // Add tooltip to explain why delivery fee is disabled
+                        txtDeliveryFee.ToolTip = "لا يتم احتساب رسوم توصيل للعملاء ذوي الاشتراك الشهري النشط";
+                    }
+                    else
+                    {
+                        lblSubscriptionStatus.Visibility = Visibility.Collapsed;
+                        txtDeliveryFee.IsEnabled = true;
+                        txtDeliveryFee.ToolTip = null;
+                    }
                 }
-                LoadCustomers();
+                catch (Exception ex)
+                {
+                    // Log error but don't show to user
+                    var logger = _serviceScope.ServiceProvider.GetService<ILogger<OrderEditDialog>>();
+                    logger?.LogError(ex, "Error checking customer subscription status");
+                }
             }
         }
 
@@ -169,6 +233,20 @@ namespace ExpressServicePOS.UI.Views
             else
             {
                 txtTotal.Text = "0.00";
+            }
+        }
+
+        private async void btnNewCustomer_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new CustomerDialog();
+            if (dialog.ShowDialog() == true)
+            {
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    dbContext.Customers.Add(dialog.Customer);
+                    await dbContext.SaveChangesAsync();
+                }
+                LoadCustomers();
             }
         }
 
@@ -254,6 +332,10 @@ namespace ExpressServicePOS.UI.Views
                 _order.Price = price;
                 _order.DeliveryFee = deliveryFee;
                 _order.Currency = ((ComboBoxItem)cmbCurrency.SelectedItem).Content.ToString();
+
+                // Update subscription information
+                _order.IsCoveredBySubscription = _activeSubscription != null;
+                _order.SubscriptionId = _activeSubscription?.Id;
 
                 using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {

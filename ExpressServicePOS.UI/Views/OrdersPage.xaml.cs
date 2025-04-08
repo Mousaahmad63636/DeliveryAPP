@@ -1,4 +1,5 @@
-﻿using ExpressServicePOS.Core.Models;
+﻿// File: ExpressServicePOS.UI/Views/OrdersPage.xaml.cs
+using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
 using ExpressServicePOS.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,66 @@ using System.Windows.Media;
 
 namespace ExpressServicePOS.UI.Views
 {
+    public class OrderViewModel
+    {
+        public int Id { get; set; }
+        public string OrderNumber { get; set; }
+        public string CustomerName { get; set; }
+        public string CustomerAddress { get; set; }
+        public string CustomerPhone { get; set; }
+        public DateTime OrderDate { get; set; }
+        public DateTime? DatePaid { get; set; }
+        public DeliveryStatus Status { get; set; }
+        public string StatusText { get; set; }
+        public decimal Price { get; set; }
+        public decimal DeliveryFee { get; set; }
+        public decimal TotalPrice { get; set; }
+        public bool IsPaid { get; set; }
+        public string DriverName { get; set; }
+        public string DriverVehicleNumber { get; set; }
+        public string OrderDescription { get; set; }
+        public string Notes { get; set; }
+        public int CustomerId { get; set; }
+        public int? DriverId { get; set; }
+        public string RecipientName { get; set; }
+        public string RecipientPhone { get; set; }
+        public string SenderName { get; set; }
+        public string SenderPhone { get; set; }
+        public string PickupLocation { get; set; }
+        public string DeliveryLocation { get; set; }
+        public string Currency { get; set; }
+        public string PaymentMethod { get; set; }
+        public bool IsBreakable { get; set; }
+        public bool IsReplacement { get; set; }
+        public bool IsReturned { get; set; }
+
+        // Subscription-related properties
+        public bool IsCoveredBySubscription { get; set; }
+        public int? SubscriptionId { get; set; }
+        public string ProfitDisplay { get; set; }
+    }
+
+    public class InverseBoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool boolValue)
+            {
+                return boolValue ? Visibility.Collapsed : Visibility.Visible;
+            }
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is Visibility visibility)
+            {
+                return visibility == Visibility.Collapsed;
+            }
+            return false;
+        }
+    }
+
     public partial class OrdersPage : Page
     {
         private readonly IServiceScope _serviceScope;
@@ -52,6 +113,7 @@ namespace ExpressServicePOS.UI.Views
                     var orders = await dbContext.Orders
                         .Include(o => o.Customer)
                         .Include(o => o.Driver)
+                        .Include(o => o.Subscription) // Include subscription information
                         .OrderByDescending(o => o.OrderDate)
                         .ToListAsync();
 
@@ -86,7 +148,16 @@ namespace ExpressServicePOS.UI.Views
                         PaymentMethod = o.PaymentMethod,
                         IsBreakable = o.IsBreakable,
                         IsReplacement = o.IsReplacement,
-                        IsReturned = o.IsReturned
+                        IsReturned = o.IsReturned,
+
+                        // Add subscription information
+                        IsCoveredBySubscription = o.IsCoveredBySubscription,
+                        SubscriptionId = o.SubscriptionId,
+
+                        // Format profit display based on subscription
+                        ProfitDisplay = o.IsCoveredBySubscription && o.Subscription != null
+                            ? $"اشتراك شهري: {FormatAmount(o.Subscription.Amount, o.Subscription.Currency)}"
+                            : FormatAmount(o.DeliveryFee, o.Currency)
                     }).ToList();
 
                     dgOrders.ItemsSource = _orders;
@@ -98,6 +169,13 @@ namespace ExpressServicePOS.UI.Views
                 _logger?.LogError(ex, "Error loading orders");
                 MessageBox.Show($"حدث خطأ أثناء تحميل الطلبات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private string FormatAmount(decimal amount, string currency)
+        {
+            return currency == "USD"
+                ? $"{amount:N2} $"
+                : $"{amount:N0} ل.ل";
         }
 
         private void UpdateSummary()
@@ -223,6 +301,7 @@ namespace ExpressServicePOS.UI.Views
                     var order = await dbContext.Orders
                         .Include(o => o.Customer)
                         .Include(o => o.Driver)
+                        .Include(o => o.Subscription)
                         .FirstOrDefaultAsync(o => o.Id == orderId);
 
                     if (order == null)
@@ -396,15 +475,15 @@ namespace ExpressServicePOS.UI.Views
                 BorderThickness = new Thickness(0.5)
             };
 
-            table.Columns.Add(new TableColumn { Width = new GridLength(40) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(40) });  // Order #
             table.Columns.Add(new TableColumn { Width = new GridLength(70) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(110) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(140) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });
+            table.Columns.Add(new TableColumn { Width = new GridLength(110) }); // Description
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(140) }); // Status
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Amount
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Profit/Subscription
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Total
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Paid
             table.Columns.Add(new TableColumn { Width = new GridLength(60) });
             table.Columns.Add(new TableColumn { Width = new GridLength(70) });
 
@@ -450,7 +529,7 @@ namespace ExpressServicePOS.UI.Views
                     row.Cells.Add(CreateTableCell(order.OrderDate.ToString("yyyy-MM-dd")));
                     row.Cells.Add(CreateTableCell(order.DatePaid.HasValue ? order.DatePaid.Value.ToString("yyyy-MM-dd") : "-"));
                     row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
-                    row.Cells.Add(CreateTableCell(order.DeliveryFee.ToString("N2")));
+                    row.Cells.Add(CreateTableCell(order.ProfitDisplay));
                     row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.StatusText));
 
@@ -489,60 +568,5 @@ namespace ExpressServicePOS.UI.Views
 
             return new TableCell(paragraph);
         }
-    }
-
-    public class InverseBoolToVisibilityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is bool boolValue)
-            {
-                return boolValue ? Visibility.Collapsed : Visibility.Visible;
-            }
-            return Visibility.Visible;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is Visibility visibility)
-            {
-                return visibility == Visibility.Collapsed;
-            }
-            return false;
-        }
-    }
-
-    public class OrderViewModel
-    {
-        public int Id { get; set; }
-        public string OrderNumber { get; set; }
-        public string CustomerName { get; set; }
-        public string CustomerAddress { get; set; }
-        public string CustomerPhone { get; set; }
-        public DateTime OrderDate { get; set; }
-        public DateTime? DatePaid { get; set; }
-        public DeliveryStatus Status { get; set; }
-        public string StatusText { get; set; }
-        public decimal Price { get; set; }
-        public decimal DeliveryFee { get; set; }
-        public decimal TotalPrice { get; set; }
-        public bool IsPaid { get; set; }
-        public string DriverName { get; set; }
-        public string DriverVehicleNumber { get; set; }
-        public string OrderDescription { get; set; }
-        public string Notes { get; set; }
-        public int CustomerId { get; set; }
-        public int? DriverId { get; set; }
-        public string RecipientName { get; set; }
-        public string RecipientPhone { get; set; }
-        public string SenderName { get; set; }
-        public string SenderPhone { get; set; }
-        public string PickupLocation { get; set; }
-        public string DeliveryLocation { get; set; }
-        public string Currency { get; set; }
-        public string PaymentMethod { get; set; }
-        public bool IsBreakable { get; set; }
-        public bool IsReplacement { get; set; }
-        public bool IsReturned { get; set; }
     }
 }

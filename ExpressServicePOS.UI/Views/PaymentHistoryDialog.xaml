@@ -1,0 +1,47 @@
+﻿<!-- File: ExpressServicePOS.UI/Views/PaymentHistoryDialog.xaml -->
+<Window x:Class="ExpressServicePOS.UI.Views.PaymentHistoryDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+        mc:Ignorable="d"
+        Title="سجل المدفوعات" Height="450" Width="600"
+        FlowDirection="RightToLeft" WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock Text="سجل مدفوعات الاشتراك الشهري" FontSize="20" FontWeight="Bold" Margin="0,0,0,5"/>
+            <TextBlock x:Name="txtSubscriptionInfo" Text="العميل: " FontSize="14"/>
+        </StackPanel>
+
+        <!-- Payments DataGrid -->
+        <DataGrid Grid.Row="1" x:Name="dgPayments" AutoGenerateColumns="False" IsReadOnly="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="تاريخ الدفع" Binding="{Binding PaymentDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
+                <DataGridTextColumn Header="المبلغ" Binding="{Binding AmountFormatted}" Width="120"/>
+                <DataGridTextColumn Header="فترة التغطية" Binding="{Binding PeriodFormatted}" Width="150"/>
+                <DataGridTextColumn Header="طريقة الدفع" Binding="{Binding PaymentMethod}" Width="100"/>
+                <DataGridTextColumn Header="ملاحظات" Binding="{Binding Notes}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Close Button -->
+        <Button Grid.Row="2" Content="إغلاق" Click="btnClose_Click"
+                Width="100" Height="35" Background="#3498db" Foreground="White" 
+                FontSize="14" BorderThickness="0" Margin="0,15,0,0" HorizontalAlignment="Center">
+            <Button.Resources>
+                <Style TargetType="Border">
+                    <Setter Property="CornerRadius" Value="5"/>
+                </Style>
+            </Button.Resources>
+        </Button>
+    </Grid>
+</Window>
