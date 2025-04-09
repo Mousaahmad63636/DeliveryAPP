@@ -1,5 +1,4 @@
-﻿// File: ExpressServicePOS.UI/Views/OrdersPage.xaml.cs
-using ExpressServicePOS.Core.Models;
+﻿using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
 using ExpressServicePOS.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -25,6 +26,9 @@ namespace ExpressServicePOS.UI.Views
         public string CustomerName { get; set; }
         public string CustomerAddress { get; set; }
         public string CustomerPhone { get; set; }
+        public string CustomerClass { get; set; }
+        public string DisplayOrderNumber => string.IsNullOrEmpty(CustomerClass) || CustomerClass == "X" ?
+            OrderNumber : $"{OrderNumber}-{CustomerClass}";
         public DateTime OrderDate { get; set; }
         public DateTime? DatePaid { get; set; }
         public DeliveryStatus Status { get; set; }
@@ -50,8 +54,6 @@ namespace ExpressServicePOS.UI.Views
         public bool IsBreakable { get; set; }
         public bool IsReplacement { get; set; }
         public bool IsReturned { get; set; }
-
-        // Subscription-related properties
         public bool IsCoveredBySubscription { get; set; }
         public int? SubscriptionId { get; set; }
         public string ProfitDisplay { get; set; }
@@ -90,28 +92,48 @@ namespace ExpressServicePOS.UI.Views
         private Customer _selectedCustomer;
         private DateTime? _startDate;
         private DateTime? _endDate;
+        private bool _isLoading = false;
 
         public OrdersPage()
         {
             InitializeComponent();
 
-            _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
-            _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-            _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<OrdersPage>>();
-            _printService = _serviceScope.ServiceProvider.GetRequiredService<PrintService>();
+            try
+            {
+                _serviceScope = ((App)Application.Current).ServiceProvider.CreateScope();
+                _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+                _logger = _serviceScope.ServiceProvider.GetRequiredService<ILogger<OrdersPage>>();
+                _printService = _serviceScope.ServiceProvider.GetRequiredService<PrintService>();
 
-            // Set default date range (current month)
-            var today = DateTime.Today;
-            var firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
-            _startDate = firstDayOfMonth;
-            _endDate = today;
+                var today = DateTime.Today;
+                var firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
+                _startDate = firstDayOfMonth;
+                _endDate = today;
 
-            dpStartDate.SelectedDate = _startDate;
-            dpEndDate.SelectedDate = _endDate;
+                dpStartDate.SelectedDate = _startDate;
+                dpEndDate.SelectedDate = _endDate;
 
-            LoadOrders();
-            LoadCustomers();
-            Unloaded += OrdersPage_Unloaded;
+                Loaded += OrdersPage_Loaded;
+                Unloaded += OrdersPage_Unloaded;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"خطأ في تهيئة الصفحة: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OrdersPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                LoadOrdersAsync();
+                LoadCustomersAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error loading page data");
+                MessageBox.Show($"خطأ في تحميل البيانات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OrdersPage_Unloaded(object sender, RoutedEventArgs e)
@@ -119,7 +141,7 @@ namespace ExpressServicePOS.UI.Views
             _serviceScope?.Dispose();
         }
 
-        private async void LoadCustomers()
+        private async void LoadCustomersAsync()
         {
             try
             {
@@ -127,292 +149,477 @@ namespace ExpressServicePOS.UI.Views
                 {
                     _customers = await dbContext.Customers.OrderBy(c => c.Name).ToListAsync();
 
-                    // Add an "All Customers" option at the beginning
                     var allCustomersOption = new Customer
                     {
                         Id = -1,
                         Name = "-- جميع العملاء --",
                         Address = "",
                         Phone = "",
-                        Notes = ""
+                        Notes = "",
+                        Class = ""
                     };
 
-                    var customersList = new List<Customer> { allCustomersOption };
-                    customersList.AddRange(_customers);
+                    var displayList = new List<object>();
+                    displayList.Add(new { Id = -1, DisplayName = "-- جميع العملاء --", RawCustomer = allCustomersOption });
 
-                    cmbCustomers.ItemsSource = customersList;
-                    cmbCustomers.SelectedIndex = 0; // Select "All Customers" by default
+                    foreach (var customer in _customers)
+                    {
+                        var displayName = string.IsNullOrEmpty(customer.Class) || customer.Class == "X" ?
+                            customer.Name : $"{customer.Name} - {customer.Class}";
+
+                        var displayCustomer = new
+                        {
+                            Id = customer.Id,
+                            DisplayName = displayName,
+                            RawCustomer = customer
+                        };
+                        displayList.Add(displayCustomer);
+                    }
+
+                    cmbCustomers.DisplayMemberPath = "DisplayName";
+                    cmbCustomers.SelectedValuePath = "Id";
+                    cmbCustomers.ItemsSource = displayList;
+                    cmbCustomers.SelectedIndex = 0;
                 }
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error loading customers");
-                MessageBox.Show($"حدث خطأ أثناء تحميل بيانات العملاء: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"خطأ أثناء تحميل بيانات العملاء: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private async void LoadOrders()
+        private async void LoadOrdersAsync()
         {
+            if (_isLoading) return;
+
+            _isLoading = true;
             try
             {
-                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
-                {
-                    var orders = await dbContext.Orders
-                        .Include(o => o.Customer)
-                        .Include(o => o.Driver)
-                        .Include(o => o.Subscription) // Include subscription information
-                        .OrderByDescending(o => o.OrderDate)
-                        .ToListAsync();
+                ShowProgressBar(true);
 
-                    _orders = orders.Select(o => new OrderViewModel
+                await Task.Run(async () => {
+                    try
                     {
-                        Id = o.Id,
-                        OrderNumber = o.OrderNumber,
-                        CustomerName = o.Customer?.Name ?? "غير معروف",
-                        CustomerAddress = o.Customer?.Address ?? "",
-                        CustomerPhone = o.Customer?.Phone ?? "",
-                        OrderDate = o.OrderDate,
-                        DatePaid = o.IsPaid ? o.DeliveryDate ?? o.OrderDate : null,
-                        Status = o.DeliveryStatus,
-                        StatusText = GetStatusText(o.DeliveryStatus),
-                        Price = o.Price,
-                        DeliveryFee = o.DeliveryFee,
-                        TotalPrice = o.TotalPrice,
-                        IsPaid = o.IsPaid,
-                        DriverName = o.Driver?.Name ?? o.DriverName,
-                        DriverVehicleNumber = o.Driver?.VehiclePlateNumber ?? "",
-                        OrderDescription = o.OrderDescription,
-                        Notes = o.Notes,
-                        CustomerId = o.CustomerId,
-                        DriverId = o.DriverId,
-                        RecipientName = o.RecipientName,
-                        RecipientPhone = o.RecipientPhone,
-                        SenderName = o.SenderName,
-                        SenderPhone = o.SenderPhone,
-                        PickupLocation = o.PickupLocation,
-                        DeliveryLocation = o.DeliveryLocation,
-                        Currency = o.Currency,
-                        PaymentMethod = o.PaymentMethod,
-                        IsBreakable = o.IsBreakable,
-                        IsReplacement = o.IsReplacement,
-                        IsReturned = o.IsReturned,
+                        using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                        {
+                            var orders = await dbContext.Orders
+                                .Include(o => o.Customer)
+                                .Include(o => o.Driver)
+                                .Include(o => o.Subscription)
+                                .OrderByDescending(o => o.OrderDate)
+                                .ToListAsync();
 
-                        // Add subscription information
-                        IsCoveredBySubscription = o.IsCoveredBySubscription,
-                        SubscriptionId = o.SubscriptionId,
-
-                        // Format profit display based on subscription
-                        ProfitDisplay = o.IsCoveredBySubscription && o.Subscription != null
-                            ? $"اشتراك شهري: {FormatAmount(o.Subscription.Amount, o.Subscription.Currency)}"
-                            : FormatAmount(o.DeliveryFee, o.Currency)
-                    }).ToList();
-
-                    ApplyFilters();
-                }
+                            Application.Current.Dispatcher.Invoke(() => {
+                                ProcessLoadedOrders(orders);
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Application.Current.Dispatcher.Invoke(() => {
+                            _logger?.LogError(ex, "Error loading orders");
+                            MessageBox.Show($"خطأ أثناء تحميل الطلبات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        });
+                    }
+                });
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Error loading orders");
-                MessageBox.Show($"حدث خطأ أثناء تحميل الطلبات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                _logger?.LogError(ex, "Error in LoadOrdersAsync");
+                MessageBox.Show($"خطأ غير متوقع: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ShowProgressBar(false);
+                _isLoading = false;
+            }
+        }
+
+        private void ProcessLoadedOrders(List<Order> orders)
+        {
+            try
+            {
+                _orders = orders.Select(o => new OrderViewModel
+                {
+                    Id = o.Id,
+                    OrderNumber = o.OrderNumber,
+                    CustomerName = o.Customer?.Name ?? "غير معروف",
+                    CustomerClass = o.Customer?.Class ?? "X",
+                    CustomerAddress = o.Customer?.Address ?? "",
+                    CustomerPhone = o.Customer?.Phone ?? "",
+                    OrderDate = o.OrderDate,
+                    DatePaid = o.IsPaid ? o.DeliveryDate ?? o.OrderDate : null,
+                    Status = o.DeliveryStatus,
+                    StatusText = GetStatusText(o.DeliveryStatus),
+                    Price = o.Price,
+                    DeliveryFee = o.DeliveryFee,
+                    TotalPrice = o.TotalPrice,
+                    IsPaid = o.IsPaid,
+                    DriverName = o.Driver?.Name ?? o.DriverName,
+                    DriverVehicleNumber = o.Driver?.VehiclePlateNumber ?? "",
+                    OrderDescription = o.OrderDescription,
+                    Notes = o.Notes,
+                    CustomerId = o.CustomerId,
+                    DriverId = o.DriverId,
+                    RecipientName = o.RecipientName ?? "",
+                    RecipientPhone = o.RecipientPhone ?? "",
+                    SenderName = o.SenderName ?? o.Customer?.Name ?? "",
+                    SenderPhone = o.SenderPhone ?? o.Customer?.Phone ?? "",
+                    PickupLocation = o.PickupLocation,
+                    DeliveryLocation = o.DeliveryLocation,
+                    Currency = o.Currency,
+                    PaymentMethod = o.PaymentMethod,
+                    IsBreakable = o.IsBreakable,
+                    IsReplacement = o.IsReplacement,
+                    IsReturned = o.IsReturned,
+                    IsCoveredBySubscription = o.IsCoveredBySubscription,
+                    SubscriptionId = o.SubscriptionId,
+                    ProfitDisplay = o.IsCoveredBySubscription && o.Subscription != null
+                        ? $"اشتراك شهري: {FormatAmount(o.Subscription.Amount, o.Subscription.Currency)}"
+                        : FormatAmount(o.DeliveryFee, o.Currency)
+                }).ToList();
+
+                ApplyFilters();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error processing loaded orders");
+                MessageBox.Show($"خطأ في معالجة بيانات الطلبات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ShowProgressBar(bool show)
+        {
+            if (progressBar != null)
+            {
+                progressBar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
             }
         }
 
         private string FormatAmount(decimal amount, string currency)
         {
-            return currency == "USD"
-                ? $"{amount:N2} $"
-                : $"{amount:N0} ل.ل";
+            try
+            {
+                return currency == "USD"
+                    ? $"{amount:N2} $"
+                    : $"{amount:N0} ل.ل";
+            }
+            catch
+            {
+                return amount.ToString();
+            }
         }
 
         private void ApplyFilters()
         {
-            if (_orders == null || !_orders.Any())
+            try
             {
-                _filteredOrders = new List<OrderViewModel>();
+                if (_orders == null || !_orders.Any())
+                {
+                    _filteredOrders = new List<OrderViewModel>();
+                    dgOrders.ItemsSource = _filteredOrders;
+                    UpdateSummary();
+                    return;
+                }
+
+                var filteredOrders = _orders;
+
+                if (_selectedCustomer != null && _selectedCustomer.Id > 0)
+                {
+                    filteredOrders = filteredOrders.Where(o => o.CustomerId == _selectedCustomer.Id).ToList();
+                }
+
+                if (_startDate.HasValue)
+                {
+                    filteredOrders = filteredOrders.Where(o => o.OrderDate.Date >= _startDate.Value.Date).ToList();
+                }
+
+                if (_endDate.HasValue)
+                {
+                    filteredOrders = filteredOrders.Where(o => o.OrderDate.Date <= _endDate.Value.Date).ToList();
+                }
+
+                string searchTerm = txtSearch.Text?.Trim().ToLower() ?? "";
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    filteredOrders = filteredOrders.Where(o =>
+                        (o.OrderNumber?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        (o.CustomerName?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        (o.CustomerPhone?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        (o.RecipientPhone?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        (o.RecipientName?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        (o.DisplayOrderNumber?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        o.Id.ToString().Contains(searchTerm) ||
+                        (o.DriverName?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        (o.CustomerClass?.ToLower()?.Contains(searchTerm) ?? false)
+                    ).ToList();
+                }
+
+                _filteredOrders = filteredOrders;
                 dgOrders.ItemsSource = _filteredOrders;
+
                 UpdateSummary();
-                return;
             }
-
-            // Start with all orders
-            var filteredOrders = _orders;
-
-            // Apply customer filter if selected
-            if (_selectedCustomer != null && _selectedCustomer.Id > 0)
+            catch (Exception ex)
             {
-                filteredOrders = filteredOrders.Where(o => o.CustomerId == _selectedCustomer.Id).ToList();
+                _logger?.LogError(ex, "Error applying filters");
+                MessageBox.Show($"خطأ في تطبيق الفلتر: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-            // Apply date range filter
-            if (_startDate.HasValue)
-            {
-                filteredOrders = filteredOrders.Where(o => o.OrderDate.Date >= _startDate.Value.Date).ToList();
-            }
-
-            if (_endDate.HasValue)
-            {
-                filteredOrders = filteredOrders.Where(o => o.OrderDate.Date <= _endDate.Value.Date).ToList();
-            }
-
-            // Apply search filter if any
-            string searchTerm = txtSearch.Text.Trim().ToLower();
-            if (!string.IsNullOrEmpty(searchTerm))
-            {
-                filteredOrders = filteredOrders.Where(o =>
-                    o.OrderNumber.ToLower().Contains(searchTerm) ||
-                    o.CustomerName.ToLower().Contains(searchTerm) ||
-                    o.CustomerPhone.ToLower().Contains(searchTerm) ||
-                    (o.RecipientPhone != null && o.RecipientPhone.ToLower().Contains(searchTerm)) ||
-                    o.Id.ToString().Contains(searchTerm) ||
-                    (o.DriverName != null && o.DriverName.ToLower().Contains(searchTerm)) ||
-                    (o.DriverVehicleNumber != null && o.DriverVehicleNumber.ToLower().Contains(searchTerm))
-                ).ToList();
-            }
-
-            _filteredOrders = filteredOrders;
-            dgOrders.ItemsSource = _filteredOrders;
-
-            UpdateSummary();
         }
 
         private void UpdateSummary()
         {
-            if (_filteredOrders == null || !_filteredOrders.Any())
+            try
             {
-                txtTotalPrice.Text = "0.00";
-                txtTotalProfit.Text = "0.00";
-                txtGrandTotal.Text = "0.00";
-                txtDeliveredCount.Text = "0";
-                txtPendingCount.Text = "0";
-                return;
+                if (_filteredOrders == null || !_filteredOrders.Any())
+                {
+                    txtTotalPrice.Text = "0.00";
+                    txtTotalProfit.Text = "0.00";
+                    txtGrandTotal.Text = "0.00";
+                    txtDeliveredCount.Text = "0";
+                    txtPendingCount.Text = "0";
+                    return;
+                }
+
+                decimal totalPrice = _filteredOrders.Sum(o => o.Price);
+                decimal totalProfit = _filteredOrders.Sum(o => o.DeliveryFee);
+                decimal grandTotal = _filteredOrders.Sum(o => o.TotalPrice);
+
+                int deliveredCount = _filteredOrders.Count(o => o.Status == DeliveryStatus.Delivered);
+                int pendingCount = _filteredOrders.Count(o => o.Status != DeliveryStatus.Delivered);
+
+                txtTotalPrice.Text = totalPrice.ToString("N2");
+                txtTotalProfit.Text = totalProfit.ToString("N2");
+                txtGrandTotal.Text = grandTotal.ToString("N2");
+                txtDeliveredCount.Text = deliveredCount.ToString();
+                txtPendingCount.Text = pendingCount.ToString();
             }
-
-            decimal totalPrice = _filteredOrders.Sum(o => o.Price);
-            decimal totalProfit = _filteredOrders.Sum(o => o.DeliveryFee);
-            decimal grandTotal = _filteredOrders.Sum(o => o.TotalPrice);
-
-            int deliveredCount = _filteredOrders.Count(o => o.Status == DeliveryStatus.Delivered);
-            int pendingCount = _filteredOrders.Count(o => o.Status != DeliveryStatus.Delivered);
-
-            txtTotalPrice.Text = totalPrice.ToString("N2");
-            txtTotalProfit.Text = totalProfit.ToString("N2");
-            txtGrandTotal.Text = grandTotal.ToString("N2");
-            txtDeliveredCount.Text = deliveredCount.ToString();
-            txtPendingCount.Text = pendingCount.ToString();
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error updating summary");
+            }
         }
 
         private string GetStatusText(DeliveryStatus status)
         {
-            return status switch
+            try
             {
-                DeliveryStatus.Pending => "قيد الانتظار",
-                DeliveryStatus.PickedUp => "تم الاستلام",
-                DeliveryStatus.InTransit => "قيد التوصيل",
-                DeliveryStatus.Delivered => "تم التسليم",
-                DeliveryStatus.PartialDelivery => "تسليم جزئي",
-                DeliveryStatus.Failed => "فشل التوصيل",
-                DeliveryStatus.Cancelled => "ملغي",
-                _ => "غير معروف"
-            };
+                return status switch
+                {
+                    DeliveryStatus.Pending => "قيد الانتظار",
+                    DeliveryStatus.PickedUp => "تم الاستلام",
+                    DeliveryStatus.InTransit => "قيد التوصيل",
+                    DeliveryStatus.Delivered => "تم التسليم",
+                    DeliveryStatus.PartialDelivery => "تسليم جزئي",
+                    DeliveryStatus.Failed => "فشل التوصيل",
+                    DeliveryStatus.Cancelled => "ملغي",
+                    _ => "غير معروف"
+                };
+            }
+            catch
+            {
+                return "غير معروف";
+            }
         }
 
         private DeliveryStatus GetStatusFromText(string statusText)
         {
-            return statusText switch
+            try
             {
-                "قيد الانتظار" => DeliveryStatus.Pending,
-                "تم الاستلام" => DeliveryStatus.PickedUp,
-                "قيد التوصيل" => DeliveryStatus.InTransit,
-                "تم التسليم" => DeliveryStatus.Delivered,
-                "تسليم جزئي" => DeliveryStatus.PartialDelivery,
-                "فشل التوصيل" => DeliveryStatus.Failed,
-                "ملغي" => DeliveryStatus.Cancelled,
-                _ => DeliveryStatus.Pending
-            };
+                return statusText switch
+                {
+                    "قيد الانتظار" => DeliveryStatus.Pending,
+                    "تم الاستلام" => DeliveryStatus.PickedUp,
+                    "قيد التوصيل" => DeliveryStatus.InTransit,
+                    "تم التسليم" => DeliveryStatus.Delivered,
+                    "تسليم جزئي" => DeliveryStatus.PartialDelivery,
+                    "فشل التوصيل" => DeliveryStatus.Failed,
+                    "ملغي" => DeliveryStatus.Cancelled,
+                    _ => DeliveryStatus.Pending
+                };
+            }
+            catch
+            {
+                return DeliveryStatus.Pending;
+            }
         }
 
         private void btnAddNewOrder_Click(object sender, RoutedEventArgs e)
         {
-            NavigationService.Navigate(new NewOrderPage());
+            try
+            {
+                NavigationService.Navigate(new NewOrderPage());
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error navigating to NewOrderPage");
+                MessageBox.Show($"خطأ في الانتقال إلى صفحة طلب جديد: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void btnSearch_Click(object sender, RoutedEventArgs e)
         {
-            ApplyFilters();
+            try
+            {
+                ApplyFilters();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in search button click");
+                MessageBox.Show($"خطأ في البحث: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void txtSearch_KeyUp(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            try
             {
-                ApplyFilters();
+                if (e.Key == Key.Enter)
+                {
+                    ApplyFilters();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in search textbox keyup");
+                MessageBox.Show($"خطأ في البحث: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void cmbCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbCustomers.SelectedItem is Customer customer)
+            try
             {
-                if (customer.Id == -1) // "All Customers" option
+                var selectedItem = cmbCustomers.SelectedItem;
+                if (selectedItem != null)
                 {
-                    _selectedCustomer = null;
-                }
-                else
-                {
-                    _selectedCustomer = customer;
-                }
+                    // Get the Id property using reflection to avoid using dynamic in a pattern
+                    var idProperty = selectedItem.GetType().GetProperty("Id");
+                    if (idProperty != null)
+                    {
+                        int selectedId = (int)idProperty.GetValue(selectedItem);
 
-                ApplyFilters();
+                        if (selectedId == -1)
+                        {
+                            _selectedCustomer = null;
+                        }
+                        else
+                        {
+                            // Try to get the RawCustomer property if it exists
+                            var rawCustomerProperty = selectedItem.GetType().GetProperty("RawCustomer");
+                            if (rawCustomerProperty != null)
+                            {
+                                var rawCustomer = rawCustomerProperty.GetValue(selectedItem) as Customer;
+                                if (rawCustomer != null)
+                                {
+                                    _selectedCustomer = rawCustomer;
+                                }
+                                else
+                                {
+                                    _selectedCustomer = _customers.FirstOrDefault(c => c.Id == selectedId);
+                                }
+                            }
+                            else
+                            {
+                                // If no RawCustomer property, try to cast directly to Customer
+                                _selectedCustomer = selectedItem as Customer;
+                                if (_selectedCustomer == null)
+                                {
+                                    _selectedCustomer = _customers.FirstOrDefault(c => c.Id == selectedId);
+                                }
+                            }
+                        }
+
+                        ApplyFilters();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in customer selection changed");
+                MessageBox.Show($"خطأ في تغيير العميل: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void DateFilter_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (sender == dpStartDate)
+            try
             {
-                _startDate = dpStartDate.SelectedDate;
-            }
-            else if (sender == dpEndDate)
-            {
-                _endDate = dpEndDate.SelectedDate;
-            }
+                if (sender == dpStartDate)
+                {
+                    _startDate = dpStartDate.SelectedDate;
+                }
+                else if (sender == dpEndDate)
+                {
+                    _endDate = dpEndDate.SelectedDate;
+                }
 
-            ApplyFilters();
+                ApplyFilters();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in date filter changed");
+                MessageBox.Show($"خطأ في تغيير التاريخ: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void btnResetFilter_Click(object sender, RoutedEventArgs e)
         {
-            // Reset all filters
-            cmbCustomers.SelectedIndex = 0; // "All Customers"
-            _selectedCustomer = null;
+            try
+            {
+                cmbCustomers.SelectedIndex = 0;
+                _selectedCustomer = null;
 
-            var today = DateTime.Today;
-            var firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
+                var today = DateTime.Today;
+                var firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
 
-            dpStartDate.SelectedDate = firstDayOfMonth;
-            dpEndDate.SelectedDate = today;
+                dpStartDate.SelectedDate = firstDayOfMonth;
+                dpEndDate.SelectedDate = today;
 
-            _startDate = firstDayOfMonth;
-            _endDate = today;
+                _startDate = firstDayOfMonth;
+                _endDate = today;
 
-            txtSearch.Text = string.Empty;
+                txtSearch.Text = string.Empty;
 
-            ApplyFilters();
+                ApplyFilters();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error resetting filters");
+                MessageBox.Show($"خطأ في إعادة تعيين الفلتر: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void dgOrders_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (dgOrders.SelectedItem is OrderViewModel selectedOrder)
+            try
             {
-                EditOrder(selectedOrder.Id);
+                if (dgOrders.SelectedItem is OrderViewModel selectedOrder)
+                {
+                    EditOrder(selectedOrder.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in datagrid double click");
+                MessageBox.Show($"خطأ في فتح الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void btnEdit_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is int orderId)
+            try
             {
-                EditOrder(orderId);
+                if (sender is Button button && button.Tag is int orderId)
+                {
+                    EditOrder(orderId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in edit button click");
+                MessageBox.Show($"خطأ في تعديل الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -420,6 +627,8 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
+                ShowProgressBar(true);
+
                 using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
                     var order = await dbContext.Orders
@@ -437,7 +646,7 @@ namespace ExpressServicePOS.UI.Views
                     var dialog = new OrderEditDialog(order);
                     if (dialog.ShowDialog() == true)
                     {
-                        LoadOrders();
+                        LoadOrdersAsync();
                         MessageBox.Show("تم تحديث الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                 }
@@ -445,21 +654,27 @@ namespace ExpressServicePOS.UI.Views
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error editing order");
-                MessageBox.Show($"حدث خطأ أثناء تعديل الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"خطأ أثناء تعديل الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ShowProgressBar(false);
             }
         }
 
         private async void btnDelete_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is int orderId)
+            try
             {
-                var result = MessageBox.Show("هل أنت متأكد من حذف هذا الطلب؟", "تأكيد الحذف",
-                        MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
+                if (sender is Button button && button.Tag is int orderId)
                 {
-                    try
+                    var result = MessageBox.Show("هل أنت متأكد من حذف هذا الطلب؟", "تأكيد الحذف",
+                            MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
                     {
+                        ShowProgressBar(true);
+
                         using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                         {
                             var order = await dbContext.Orders.FindAsync(orderId);
@@ -467,17 +682,25 @@ namespace ExpressServicePOS.UI.Views
                             {
                                 dbContext.Orders.Remove(order);
                                 await dbContext.SaveChangesAsync();
-                                LoadOrders();
+                                LoadOrdersAsync();
                                 MessageBox.Show("تم حذف الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                MessageBox.Show("الطلب غير موجود أو ربما تم حذفه مسبقاً", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError(ex, "Error deleting order");
-                        MessageBox.Show($"حدث خطأ أثناء حذف الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error deleting order");
+                MessageBox.Show($"خطأ أثناء حذف الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ShowProgressBar(false);
             }
         }
 
@@ -487,6 +710,8 @@ namespace ExpressServicePOS.UI.Views
             {
                 if (sender is Button button && button.Tag is int orderId)
                 {
+                    ShowProgressBar(true);
+
                     using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                     {
                         var order = await dbContext.Orders.FindAsync(orderId);
@@ -500,8 +725,16 @@ namespace ExpressServicePOS.UI.Views
 
                             dbContext.Orders.Update(order);
                             await dbContext.SaveChangesAsync();
-                            LoadOrders();
+                            LoadOrdersAsync();
                             MessageBox.Show("تم تحديث حالة الدفع بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        else if (order == null)
+                        {
+                            MessageBox.Show("الطلب غير موجود", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                        else if (order.IsPaid)
+                        {
+                            MessageBox.Show("الطلب مدفوع بالفعل", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
                     }
                 }
@@ -509,7 +742,11 @@ namespace ExpressServicePOS.UI.Views
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error marking order as paid");
-                MessageBox.Show($"حدث خطأ أثناء تحديث حالة الدفع: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"خطأ أثناء تحديث حالة الدفع: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ShowProgressBar(false);
             }
         }
 
@@ -517,6 +754,12 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
+                if (_filteredOrders == null || _filteredOrders.Count == 0)
+                {
+                    MessageBox.Show("لا توجد بيانات للطباعة", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
                 var document = CreateTablePrintDocument();
 
                 PrintDialog printDialog = new PrintDialog();
@@ -540,7 +783,7 @@ namespace ExpressServicePOS.UI.Views
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error printing table");
-                MessageBox.Show($"حدث خطأ أثناء طباعة الجدول: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"خطأ أثناء طباعة الجدول: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -573,7 +816,6 @@ namespace ExpressServicePOS.UI.Views
             };
             document.Blocks.Add(datePara);
 
-            // Add filter information
             var filterPara = new Paragraph
             {
                 TextAlignment = TextAlignment.Center,
@@ -582,7 +824,9 @@ namespace ExpressServicePOS.UI.Views
 
             if (_selectedCustomer != null)
             {
-                filterPara.Inlines.Add(new Run($"العميل: {_selectedCustomer.Name} | "));
+                string customerDisplay = string.IsNullOrEmpty(_selectedCustomer.Class) || _selectedCustomer.Class == "X" ?
+                    _selectedCustomer.Name : $"{_selectedCustomer.Name} - {_selectedCustomer.Class}";
+                filterPara.Inlines.Add(new Run($"المرسل: {customerDisplay} | "));
             }
 
             if (_startDate.HasValue && _endDate.HasValue)
@@ -624,23 +868,26 @@ namespace ExpressServicePOS.UI.Views
                 BorderThickness = new Thickness(0.5)
             };
 
-            table.Columns.Add(new TableColumn { Width = new GridLength(40) });  // Order #
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });  // Customer
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });  // Recipient Phone
-            table.Columns.Add(new TableColumn { Width = new GridLength(110) }); // Address
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(140) }); // Status
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Amount
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Profit/Subscription
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Total
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Paid
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });  // Driver
+            // Define the columns to match the DataGrid layout
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Order # with Class
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Sender (Customer)
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Name
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Address
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Status
+            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Amount
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Profit/Subscription
+            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Total
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Driver
 
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
 
+            // Add headers that match the DataGrid
             headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("العميل", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("المرسل", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("المستلم", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("هاتف المستلم", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("العنوان", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("تاريخ الطلب", FontWeights.Bold));
@@ -648,7 +895,6 @@ namespace ExpressServicePOS.UI.Views
             headerRow.Cells.Add(CreateTableCell("السعر", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الربح", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الإجمالي", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("مدفوع", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("السائق", FontWeights.Bold));
 
             var headerRowGroup = new TableRowGroup();
@@ -669,8 +915,10 @@ namespace ExpressServicePOS.UI.Views
                         row.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
                     }
 
-                    row.Cells.Add(CreateTableCell(order.OrderNumber));
+                    // Add cells to match the DataGrid
+                    row.Cells.Add(CreateTableCell(order.DisplayOrderNumber));
                     row.Cells.Add(CreateTableCell(order.CustomerName));
+                    row.Cells.Add(CreateTableCell(order.RecipientName));
                     row.Cells.Add(CreateTableCell(order.RecipientPhone));
                     row.Cells.Add(CreateTableCell(order.CustomerAddress));
                     row.Cells.Add(CreateTableCell(order.OrderDate.ToString("yyyy-MM-dd")));
@@ -678,7 +926,6 @@ namespace ExpressServicePOS.UI.Views
                     row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.ProfitDisplay));
                     row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
-                    row.Cells.Add(CreateTableCell(order.IsPaid ? "نعم" : "لا"));
                     row.Cells.Add(CreateTableCell(order.DriverName));
 
                     dataRowGroup.Rows.Add(row);
@@ -715,6 +962,20 @@ namespace ExpressServicePOS.UI.Views
             }
 
             return new TableCell(paragraph);
+        }
+
+        private void btnRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                LoadOrdersAsync();
+                LoadCustomersAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error refreshing data");
+                MessageBox.Show($"خطأ أثناء تحديث البيانات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

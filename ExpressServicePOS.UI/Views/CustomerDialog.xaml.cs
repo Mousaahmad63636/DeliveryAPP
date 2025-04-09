@@ -1,4 +1,5 @@
-﻿using ExpressServicePOS.Core.Models;
+﻿// ExpressServicePOS.UI/Views/CustomerDialog.xaml.cs
+using ExpressServicePOS.Core.Models;
 using System.Windows;
 
 namespace ExpressServicePOS.UI.Views
@@ -11,6 +12,7 @@ namespace ExpressServicePOS.UI.Views
         // Make Customer property publicly settable
         public Customer Customer { get; set; }
 
+
         public CustomerDialog()
         {
             InitializeComponent();
@@ -19,8 +21,12 @@ namespace ExpressServicePOS.UI.Views
                 Name = string.Empty,
                 Address = string.Empty,
                 Phone = string.Empty,
-                Notes = string.Empty
+                Notes = string.Empty,
+                Class = "X"  // Default class is "X"
             };
+
+            // Set default value for Class field
+            txtClass.Text = "X";
         }
 
         /// <summary>
@@ -31,6 +37,7 @@ namespace ExpressServicePOS.UI.Views
             if (Customer != null)
             {
                 txtName.Text = Customer.Name;
+                txtClass.Text = Customer.Class;
                 txtAddress.Text = Customer.Address;
                 txtPhone.Text = Customer.Phone;
                 txtNotes.Text = Customer.Notes;
@@ -49,6 +56,7 @@ namespace ExpressServicePOS.UI.Views
 
             // Create customer object
             Customer.Name = txtName.Text;
+            Customer.Class = txtClass.Text;
             Customer.Address = txtAddress.Text;
             Customer.Phone = txtPhone.Text;
             Customer.Notes = txtNotes.Text;

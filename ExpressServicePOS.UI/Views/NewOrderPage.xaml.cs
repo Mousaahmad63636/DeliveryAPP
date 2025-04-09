@@ -325,16 +325,25 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
+        // ExpressServicePOS.UI/Views/NewOrderPage.xaml.cs
         private async Task<bool> SaveOrder()
         {
             try
             {
                 using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
-                    var existingOrder = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == txtOrderNumber.Text);
+                    // Get the customer class
+                    string customerClass = _selectedCustomer?.Class ?? "X";
+
+                    // Check if a combination of order number and class already exists
+                    var existingOrder = await dbContext.Orders
+                        .Include(o => o.Customer)
+                        .FirstOrDefaultAsync(o => o.OrderNumber == txtOrderNumber.Text
+                                               && o.Customer.Class == customerClass);
+
                     if (existingOrder != null)
                     {
-                        MessageBox.Show("رقم الطلب موجود بالفعل. الرجاء استخدام رقم آخر.", "تحذير", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show("رقم الطلب موجود بالفعل لنفس فئة المرسل. الرجاء استخدام رقم آخر أو مرسل بفئة مختلفة.", "تحذير", MessageBoxButton.OK, MessageBoxImage.Warning);
                         return false;
                     }
 

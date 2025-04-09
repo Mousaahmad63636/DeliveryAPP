@@ -1,4 +1,4 @@
-﻿// File: ExpressServicePOS.Core.Models/Customer.cs
+﻿// ExpressServicePOS.Core/Models/Customer.cs
 using System;
 using System.Collections.Generic;
 using System.Windows.Controls;
@@ -15,6 +15,7 @@ namespace ExpressServicePOS.Core.Models
         public required string Address { get; set; }
         public required string Phone { get; set; }
         public required string Notes { get; set; }
+        public string Class { get; set; } = "X";
 
         /// <summary>
         /// Collection of orders associated with this customer.

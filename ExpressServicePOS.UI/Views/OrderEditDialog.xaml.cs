@@ -32,7 +32,6 @@ namespace ExpressServicePOS.UI.Views
             _dbContextFactory = _serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _logger = _serviceScope.ServiceProvider.GetService<ILogger<OrderEditDialog>>();
 
-            // Initialize subscription label
             lblSubscriptionStatus.Visibility = Visibility.Collapsed;
 
             LoadCustomers();
@@ -124,7 +123,6 @@ namespace ExpressServicePOS.UI.Views
             txtDeliveryFee.Text = _order.DeliveryFee.ToString("N2");
             txtTotal.Text = _order.TotalPrice.ToString("N2");
 
-            // Handle subscription info
             if (_order.IsCoveredBySubscription && _order.Subscription != null)
             {
                 _activeSubscription = _order.Subscription;
@@ -132,7 +130,6 @@ namespace ExpressServicePOS.UI.Views
                 lblSubscriptionStatus.Content = $"اشتراك شهري نشط - {_activeSubscription.Amount:N2} {currency}";
                 lblSubscriptionStatus.Visibility = Visibility.Visible;
 
-                // If order is covered by subscription, disable delivery fee
                 txtDeliveryFee.IsEnabled = false;
                 txtDeliveryFee.ToolTip = "لا يتم احتساب رسوم توصيل للعملاء ذوي الاشتراك الشهري النشط";
             }
@@ -153,38 +150,29 @@ namespace ExpressServicePOS.UI.Views
             chkIsPaid.IsChecked = _order.IsPaid;
         }
 
-        // File: ExpressServicePOS.UI/Views/OrderEditDialog.xaml.cs
-        // Update cmbCustomers_SelectionChanged method:
-
         private async void cmbCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (cmbCustomers.SelectedItem is Customer selectedCustomer)
             {
                 _selectedCustomer = selectedCustomer;
 
-                // Update this to populate sender fields instead of recipient fields
                 txtSenderName.Text = _selectedCustomer.Name;
                 txtSenderPhone.Text = _selectedCustomer.Phone;
                 txtPickupLocation.Text = _selectedCustomer.Address;
 
-                // Check for active subscription
                 try
                 {
                     var subscriptionService = _serviceScope.ServiceProvider.GetRequiredService<SubscriptionService>();
                     _activeSubscription = await subscriptionService.GetActiveSubscriptionForCustomerAsync(_selectedCustomer.Id);
 
-                    // Update UI to reflect subscription status
                     if (_activeSubscription != null)
                     {
                         string currency = _activeSubscription.Currency == "USD" ? "$" : "ل.ل";
                         lblSubscriptionStatus.Content = $"اشتراك شهري نشط - {_activeSubscription.Amount:N2} {currency}";
                         lblSubscriptionStatus.Visibility = Visibility.Visible;
 
-                        // If customer has subscription, disable delivery fee
                         txtDeliveryFee.Text = "0.00";
                         txtDeliveryFee.IsEnabled = false;
-
-                        // Add tooltip to explain why delivery fee is disabled
                         txtDeliveryFee.ToolTip = "لا يتم احتساب رسوم توصيل للعملاء ذوي الاشتراك الشهري النشط";
                     }
                     else
@@ -196,7 +184,6 @@ namespace ExpressServicePOS.UI.Views
                 }
                 catch (Exception ex)
                 {
-                    // Log error but don't show to user
                     var logger = _serviceScope.ServiceProvider.GetService<ILogger<OrderEditDialog>>();
                     logger?.LogError(ex, "Error checking customer subscription status");
                 }
@@ -289,56 +276,73 @@ namespace ExpressServicePOS.UI.Views
                     _order.Customer = _selectedCustomer;
                 }
 
-                _selectedDriver = cmbDrivers.SelectedItem as Driver;
-                _order.DriverId = _selectedDriver?.Id;
-                _order.Driver = _selectedDriver;
-                _order.DriverName = txtDriverName.Text;
-                _order.OrderDescription = txtOrderDescription.Text;
-                _order.OrderDate = dtpOrderDate.SelectedDate ?? DateTime.Now;
-
-                switch (cmbStatus.SelectedIndex)
-                {
-                    case 0:
-                        _order.DeliveryStatus = DeliveryStatus.Pending;
-                        break;
-                    case 1:
-                        _order.DeliveryStatus = DeliveryStatus.PickedUp;
-                        break;
-                    case 2:
-                        _order.DeliveryStatus = DeliveryStatus.InTransit;
-                        break;
-                    case 3:
-                        _order.DeliveryStatus = DeliveryStatus.Delivered;
-                        break;
-                    case 4:
-                        _order.DeliveryStatus = DeliveryStatus.PartialDelivery;
-                        break;
-                    case 5:
-                        _order.DeliveryStatus = DeliveryStatus.Failed;
-                        break;
-                    case 6:
-                        _order.DeliveryStatus = DeliveryStatus.Cancelled;
-                        break;
-                }
-
-                _order.Notes = txtNotes.Text;
-                _order.IsPaid = chkIsPaid.IsChecked ?? false;
-                _order.SenderName = txtSenderName.Text;
-                _order.SenderPhone = txtSenderPhone.Text;
-                _order.RecipientName = txtRecipientName.Text;
-                _order.RecipientPhone = txtRecipientPhone.Text;
-                _order.PickupLocation = txtPickupLocation.Text;
-                _order.DeliveryLocation = txtDeliveryLocation.Text;
-                _order.Price = price;
-                _order.DeliveryFee = deliveryFee;
-                _order.Currency = ((ComboBoxItem)cmbCurrency.SelectedItem).Content.ToString();
-
-                // Update subscription information
-                _order.IsCoveredBySubscription = _activeSubscription != null;
-                _order.SubscriptionId = _activeSubscription?.Id;
-
                 using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
                 {
+                    if (_order.OrderNumber != txtOrderNumber.Text)
+                    {
+                        string customerClass = _selectedCustomer?.Class ?? "X";
+
+                        var existingOrder = await dbContext.Orders
+                            .Include(o => o.Customer)
+                            .FirstOrDefaultAsync(o => o.Id != _order.Id
+                                                && o.OrderNumber == txtOrderNumber.Text
+                                                && o.Customer.Class == customerClass);
+
+                        if (existingOrder != null)
+                        {
+                            MessageBox.Show("رقم الطلب موجود بالفعل لنفس فئة المرسل. الرجاء استخدام رقم آخر أو مرسل بفئة مختلفة.", "تحذير", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
+                    }
+
+                    _selectedDriver = cmbDrivers.SelectedItem as Driver;
+                    _order.DriverId = _selectedDriver?.Id;
+                    _order.Driver = _selectedDriver;
+                    _order.DriverName = txtDriverName.Text;
+                    _order.OrderDescription = txtOrderDescription.Text;
+                    _order.OrderDate = dtpOrderDate.SelectedDate ?? DateTime.Now;
+                    _order.OrderNumber = txtOrderNumber.Text;
+
+                    switch (cmbStatus.SelectedIndex)
+                    {
+                        case 0:
+                            _order.DeliveryStatus = DeliveryStatus.Pending;
+                            break;
+                        case 1:
+                            _order.DeliveryStatus = DeliveryStatus.PickedUp;
+                            break;
+                        case 2:
+                            _order.DeliveryStatus = DeliveryStatus.InTransit;
+                            break;
+                        case 3:
+                            _order.DeliveryStatus = DeliveryStatus.Delivered;
+                            break;
+                        case 4:
+                            _order.DeliveryStatus = DeliveryStatus.PartialDelivery;
+                            break;
+                        case 5:
+                            _order.DeliveryStatus = DeliveryStatus.Failed;
+                            break;
+                        case 6:
+                            _order.DeliveryStatus = DeliveryStatus.Cancelled;
+                            break;
+                    }
+
+                    _order.Notes = txtNotes.Text;
+                    _order.IsPaid = chkIsPaid.IsChecked ?? false;
+                    _order.SenderName = txtSenderName.Text;
+                    _order.SenderPhone = txtSenderPhone.Text;
+                    _order.RecipientName = txtRecipientName.Text;
+                    _order.RecipientPhone = txtRecipientPhone.Text;
+                    _order.PickupLocation = txtPickupLocation.Text;
+                    _order.DeliveryLocation = txtDeliveryLocation.Text;
+                    _order.Price = price;
+                    _order.DeliveryFee = deliveryFee;
+                    _order.Currency = ((ComboBoxItem)cmbCurrency.SelectedItem).Content.ToString();
+
+                    _order.IsCoveredBySubscription = _activeSubscription != null;
+                    _order.SubscriptionId = _activeSubscription?.Id;
+
                     dbContext.Orders.Update(_order);
                     await dbContext.SaveChangesAsync();
                 }

@@ -102,6 +102,7 @@ namespace ExpressServicePOS.Data.Context
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.Address).HasMaxLength(200);
                 entity.Property(e => e.Phone).HasMaxLength(20);
+                entity.Property(e => e.Class).HasMaxLength(50).HasDefaultValue("X");
             });
 
             // Configure Order entity

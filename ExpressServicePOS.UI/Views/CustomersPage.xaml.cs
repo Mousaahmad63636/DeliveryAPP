@@ -87,6 +87,7 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
+        // ExpressServicePOS.UI/Views/CustomersPage.xaml.cs
         private async void ApplySearch()
         {
             string searchTerm = txtSearch.Text.Trim();
@@ -105,7 +106,8 @@ namespace ExpressServicePOS.UI.Views
                         var customers = await dbContext.Customers
                             .Where(c => c.Name.Contains(searchTerm) ||
                                    c.Phone.Contains(searchTerm) ||
-                                   c.Address.Contains(searchTerm))
+                                   c.Address.Contains(searchTerm) ||
+                                   c.Class.Contains(searchTerm))
                             .OrderBy(c => c.Name)
                             .ToListAsync();
 
