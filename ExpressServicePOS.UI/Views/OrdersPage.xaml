@@ -1,39 +1,56 @@
-﻿<!-- File: ExpressServicePOS.UI/Views/OrdersPage.xaml -->
-<Page x:Class="ExpressServicePOS.UI.Views.OrdersPage"
+﻿<Page x:Class="ExpressServicePOS.UI.Views.OrdersPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
       xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      xmlns:converters="clr-namespace:ExpressServicePOS.UI.Converters"
       mc:Ignorable="d" 
-      d:DesignHeight="600" d:DesignWidth="1000"
-      Title="إدارة الطلبات">
+      d:DesignHeight="700" d:DesignWidth="1200"
+      Title="إدارة الطلبات" Loaded="OrdersPage_Loaded" FlowDirection="RightToLeft">
 
     <Page.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
 
-        <Style x:Key="ActionButton" TargetType="Button">
-            <Setter Property="Margin" Value="5,0"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Height" Value="35"/>
+        <Style x:Key="DataGridCellRightAligned" TargetType="DataGridCell">
+            <Setter Property="TextBlock.TextAlignment" Value="Right"/>
+            <Setter Property="Padding" Value="8 4"/>
+        </Style>
+
+        <Style x:Key="DataGridCellCentered" TargetType="DataGridCell">
+            <Setter Property="TextBlock.TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="8 4"/>
+        </Style>
+
+        <Style x:Key="ButtonWithIcon" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="2"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
 
-        <Style x:Key="ActionButtonBorder" TargetType="Border">
-            <Setter Property="CornerRadius" Value="4"/>
+        <Style x:Key="RoundedButton" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="5" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- Enhanced search box style - Fixed by removing unsupported property -->
-        <Style x:Key="EnhancedSearchBox" TargetType="TextBox" BasedOn="{StaticResource MaterialDesignOutlinedTextBox}">
-            <Setter Property="Foreground" Value="Black"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="materialDesign:HintAssist.Foreground" Value="#666666"/>
-            <Setter Property="materialDesign:HintAssist.HintOpacity" Value="0.8"/>
-            <Setter Property="materialDesign:TextFieldAssist.TextFieldCornerRadius" Value="5"/>
-            <Setter Property="FlowDirection" Value="RightToLeft"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Style x:Key="HeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F5F5F5"/>
+            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="8 10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
     </Page.Resources>
 
@@ -43,76 +60,53 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Summary Section -->
-        <materialDesign:Card Grid.Row="0" Margin="20,20,20,10" UniformCornerRadius="8">
-            <Grid Margin="16">
+        <!-- Page Header -->
+        <materialDesign:Card Grid.Row="0" Margin="20,10,20,10" UniformCornerRadius="8">
+            <Grid Margin="16,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="إجمالي السعر:" FontWeight="Bold" FontSize="16"/>
-                    <TextBlock x:Name="txtTotalPrice" Text="0.00" FontSize="16"/>
+
+                <TextBlock Text="إدارة الطلبات" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnAddOrder" Click="btnAddOrder_Click" Style="{StaticResource RoundedButton}"
+                            Background="#2980b9" Foreground="White" Width="120" Height="36">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Plus" Width="20" Height="20" Margin="0,0,8,0"/>
+                            <TextBlock Text="طلب جديد"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="btnPrint" Click="btnPrint_Click" Style="{StaticResource RoundedButton}"
+                            Background="#3498db" Foreground="White" Width="120" Height="36" Margin="10,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Printer" Width="20" Height="20" Margin="0,0,8,0"/>
+                            <TextBlock Text="طباعة"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="btnExport" Click="btnExport_Click" Style="{StaticResource RoundedButton}"
+                            Background="#27ae60" Foreground="White" Width="120" Height="36" Margin="10,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="FileExcel" Width="20" Height="20" Margin="0,0,8,0"/>
+                            <TextBlock Text="تصدير"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
-                <StackPanel Grid.Column="1">
-                    <TextBlock Text="إجمالي الربح:" FontWeight="Bold" FontSize="16"/>
-                    <TextBlock x:Name="txtTotalProfit" Text="0.00" FontSize="16"/>
-                </StackPanel>
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="الإجمالي الكلي:" FontWeight="Bold" FontSize="16"/>
-                    <TextBlock x:Name="txtGrandTotal" Text="0.00" FontSize="16"/>
-                </StackPanel>
-                <StackPanel Grid.Column="3">
-                    <TextBlock Text="إحصائيات الطلبات:" FontWeight="Bold" FontSize="16"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="تم التسليم:" FontSize="14"/>
-                        <TextBlock Grid.Column="1" x:Name="txtDeliveredCount" Text="0" FontSize="14" FontWeight="Bold" Foreground="#27ae60"/>
-                    </Grid>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="قيد التوصيل:" FontSize="14"/>
-                        <TextBlock Grid.Column="1" x:Name="txtPendingCount" Text="0" FontSize="14" FontWeight="Bold" Foreground="#e74c3c"/>
-                    </Grid>
-                </StackPanel>
-                <Button Grid.Column="4" x:Name="btnRefresh" Content="تحديث" 
-                        Click="btnRefresh_Click" Width="80" Height="40" 
-                        Background="#7f8c8d" Foreground="White" Margin="5,0">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="5"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
-                <Button Grid.Column="5" x:Name="btnPrintTable" Content="طباعة الجدول" 
-                        Click="btnPrintTable_Click" Width="120" Height="40" 
-                        Background="#3498db" Foreground="White">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="5"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
             </Grid>
         </materialDesign:Card>
 
-        <!-- Customer Filter & Date Range -->
+        <!-- Filter Section -->
         <materialDesign:Card Grid.Row="1" Margin="20,0,20,10" UniformCornerRadius="8">
             <Grid Margin="16,10">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="1.5*"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -150,140 +144,169 @@
                     <DatePicker Grid.Column="1" x:Name="dpEndDate" SelectedDateChanged="DateFilter_Changed"/>
                 </Grid>
 
-                <Button Grid.Column="3" Content="إعادة تعيين الفلتر" Width="120" Height="30" 
-                        Background="#95a5a6" Foreground="White" Click="btnResetFilter_Click" Margin="10,0,0,0">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="5"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
+                <!-- Order Status Filter -->
+                <Grid Grid.Column="3" Margin="10,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="الحالة:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <ComboBox Grid.Column="1" x:Name="cmbOrderStatus" SelectionChanged="cmbOrderStatus_SelectionChanged">
+                        <ComboBoxItem Content="جميع الحالات" Tag="-1"/>
+                        <ComboBoxItem Content="قيد الانتظار" Tag="0"/>
+                        <ComboBoxItem Content="تم الاستلام" Tag="1"/>
+                        <ComboBoxItem Content="قيد التوصيل" Tag="2"/>
+                        <ComboBoxItem Content="تم التسليم" Tag="3" IsSelected="True"/>
+                        <ComboBoxItem Content="تسليم جزئي" Tag="4"/>
+                        <ComboBoxItem Content="فشل التوصيل" Tag="5"/>
+                        <ComboBoxItem Content="ملغى" Tag="6"/>
+                    </ComboBox>
+                </Grid>
+
+                <Button Grid.Column="4" Content="إعادة تعيين الفلتر" Width="120" Height="30" 
+                        Background="#95a5a6" Foreground="White" Click="btnResetFilter_Click" Margin="10,0,0,0"
+                        Style="{StaticResource RoundedButton}"/>
             </Grid>
         </materialDesign:Card>
 
-        <!-- Search and Add Order - UPDATED SEARCH BAR -->
+        <!-- Search Section -->
         <materialDesign:Card Grid.Row="2" Margin="20,0,20,10" UniformCornerRadius="8">
             <Grid Margin="16,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Enhanced Search TextBox with better visibility -->
-                <TextBox Grid.Column="0" x:Name="txtSearch" Margin="0,0,10,0" Height="40" 
-                         KeyUp="txtSearch_KeyUp" 
-                         materialDesign:HintAssist.Hint="بحث بالاسم، رقم الهاتف، رقم الطلب، السائق، رقم المستلم، الفئة..."
-                         Style="{StaticResource EnhancedSearchBox}"
-                         materialDesign:HintAssist.IsFloating="True"
-                         Padding="8,4,8,4"
-                         Background="White"
-                         CaretBrush="Black"/>
+                <TextBox x:Name="txtSearch" Grid.Column="0" 
+                         materialDesign:HintAssist.Hint="البحث بواسطة رقم الطلب، اسم العميل، رقم الهاتف..."
+                         TextChanged="txtSearch_TextChanged"
+                         KeyUp="txtSearch_KeyUp"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         VerticalAlignment="Center"/>
 
-                <Button Grid.Column="1" Content="بحث" Width="100" Height="40" Background="#95a5a6" 
-                        Foreground="White" Click="btnSearch_Click" Margin="0,0,10,0">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="5"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
-                <Button Grid.Column="2" Content="إضافة طلب جديد" Width="150" Height="40" 
-                        Background="#3498db" Foreground="White" Click="btnAddNewOrder_Click">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="5"/>
-                        </Style>
-                    </Button.Resources>
+                <Button Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource RoundedButton}"
+                        Width="120" Height="36" Background="#3498db" Foreground="White"
+                        Click="btnSearch_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Magnify" Width="20" Height="20" Margin="0,0,8,0"/>
+                        <TextBlock Text="بحث"/>
+                    </StackPanel>
                 </Button>
             </Grid>
         </materialDesign:Card>
 
-        <!-- Orders List -->
-        <Grid Grid.Row="3" Margin="20,0,20,20">
-            <materialDesign:Card UniformCornerRadius="8">
-                <Grid>
-                    <DataGrid x:Name="dgOrders" AutoGenerateColumns="False" CanUserAddRows="False" 
-                              CanUserDeleteRows="False" IsReadOnly="True" SelectionMode="Single"
-                              MouseDoubleClick="dgOrders_MouseDoubleClick"
-                              AlternatingRowBackground="#F5F5F5"
-                              BorderThickness="0">
-                        <DataGrid.Resources>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#3498db"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter Property="Padding" Value="10,5"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Style>
-                            <Style TargetType="DataGridRowHeader">
-                                <Setter Property="Width" Value="0"/>
-                            </Style>
-                        </DataGrid.Resources>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="رقم الطلب" Binding="{Binding DisplayOrderNumber}" Width="100"/>
-                            <DataGridTextColumn Header="المرسل" Binding="{Binding CustomerName}" Width="130"/>
-                            <DataGridTextColumn Header="المستلم" Binding="{Binding RecipientName}" Width="130"/>
-                            <DataGridTextColumn Header="هاتف المستلم" Binding="{Binding RecipientPhone}" Width="100"/>
-                            <DataGridTextColumn Header="العنوان" Binding="{Binding CustomerAddress}" Width="150"/>
-                            <DataGridTextColumn Header="تاريخ الطلب" Binding="{Binding OrderDate, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
-                            <DataGridTextColumn Header="تاريخ الدفع" Binding="{Binding DatePaid, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
-                            <DataGridTextColumn Header="حالة الطلب" Binding="{Binding StatusText}" Width="100"/>
-                            <DataGridTextColumn Header="المبلغ" Binding="{Binding Price, StringFormat=\{0:N2\}}" Width="75"/>
-                            <DataGridTextColumn Header="الربح" Binding="{Binding ProfitDisplay}" Width="100"/>
-                            <DataGridTextColumn Header="الإجمالي" Binding="{Binding TotalPrice, StringFormat=\{0:N2\}}" Width="75"/>
-                            <DataGridTextColumn Header="السائق" Binding="{Binding DriverName}" Width="100"/>
-                            <DataGridTemplateColumn Header="إجراءات" Width="*">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <Button Style="{StaticResource ActionButton}" Width="80"
-                                                    Click="btnEdit_Click" Tag="{Binding Id}"
-                                                    Background="#8e44ad">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <materialDesign:PackIcon Kind="Edit" Width="16" Height="16" VerticalAlignment="Center"/>
-                                                    <TextBlock Text=" تعديل" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <Button.Resources>
-                                                    <Style TargetType="Border" BasedOn="{StaticResource ActionButtonBorder}"/>
-                                                </Button.Resources>
-                                            </Button>
-                                            <Button Style="{StaticResource ActionButton}" Width="90"
-                                                    Click="btnMarkAsPaid_Click" Tag="{Binding Id}"
-                                                    Background="#f39c12"
-                                                    Visibility="{Binding IsPaid, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <materialDesign:PackIcon Kind="CashCheck" Width="16" Height="16" VerticalAlignment="Center"/>
-                                                    <TextBlock Text=" دفع" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <Button.Resources>
-                                                    <Style TargetType="Border" BasedOn="{StaticResource ActionButtonBorder}"/>
-                                                </Button.Resources>
-                                            </Button>
-                                            <Button Style="{StaticResource ActionButton}" Width="55"
-                                                    Click="btnDelete_Click" Tag="{Binding Id}"
-                                                    Background="#e74c3c">
-                                                <materialDesign:PackIcon Kind="Delete" Width="16" Height="16" VerticalAlignment="Center"/>
-                                                <Button.Resources>
-                                                    <Style TargetType="Border" BasedOn="{StaticResource ActionButtonBorder}"/>
-                                                </Button.Resources>
-                                            </Button>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
+        <!-- Orders DataGrid -->
+        <materialDesign:Card Grid.Row="3" Margin="20,0,20,10" UniformCornerRadius="8">
+            <Grid>
+                <DataGrid x:Name="dgOrders" AutoGenerateColumns="False" 
+                          CanUserAddRows="False" CanUserDeleteRows="False"
+                          IsReadOnly="True" GridLinesVisibility="All"
+                          AlternatingRowBackground="#F5F5F5"
+                          RowBackground="White"
+                          ColumnHeaderStyle="{StaticResource HeaderStyle}"
+                          HorizontalGridLinesBrush="#E0E0E0"
+                          VerticalGridLinesBrush="#E0E0E0"
+                          BorderBrush="#E0E0E0" BorderThickness="1"
+                          SelectionMode="Single"
+                          SelectionChanged="dgOrders_SelectionChanged"
+                          MouseDoubleClick="dgOrders_MouseDoubleClick"
+                          RowHeight="40">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="رقم الطلب" Binding="{Binding DisplayOrderNumber}" Width="100" CellStyle="{StaticResource DataGridCellCentered}"/>
+                        <DataGridTextColumn Header="المرسل" Binding="{Binding CustomerName}" Width="140" CellStyle="{StaticResource DataGridCellRightAligned}"/>
+                        <DataGridTextColumn Header="المستلم" Binding="{Binding RecipientName}" Width="140" CellStyle="{StaticResource DataGridCellRightAligned}"/>
+                        <DataGridTextColumn Header="هاتف المستلم" Binding="{Binding RecipientPhone}" Width="120" CellStyle="{StaticResource DataGridCellCentered}"/>
+                        <DataGridTextColumn Header="العنوان" Binding="{Binding CustomerAddress}" Width="180" CellStyle="{StaticResource DataGridCellRightAligned}"/>
+                        <DataGridTextColumn Header="تاريخ الطلب" Binding="{Binding OrderDate, StringFormat={}{0:yyyy-MM-dd}}" Width="100" CellStyle="{StaticResource DataGridCellCentered}"/>
+                        <DataGridTextColumn Header="تاريخ الدفع" Binding="{Binding DatePaid, StringFormat={}{0:yyyy-MM-dd}, TargetNullValue='-'}" Width="100" CellStyle="{StaticResource DataGridCellCentered}"/>
 
-                    <!-- Progress bar -->
-                    <ProgressBar x:Name="progressBar" 
-                                 IsIndeterminate="True" 
-                                 Height="4" 
-                                 VerticalAlignment="Top" 
-                                 Visibility="Collapsed"
-                                 Background="Transparent"
-                                 Foreground="#3498db"/>
+                        <DataGridTextColumn Header="الحالة" Binding="{Binding StatusText}" Width="100" CellStyle="{StaticResource DataGridCellCentered}"/>
+
+                        <DataGridTextColumn Header="السعر" Binding="{Binding Price, StringFormat={}{0:N2}}" Width="80" CellStyle="{StaticResource DataGridCellCentered}"/>
+
+                        <DataGridTextColumn Header="الربح/الاشتراك" Binding="{Binding ProfitDisplay}" Width="120" CellStyle="{StaticResource DataGridCellCentered}"/>
+
+                        <DataGridTextColumn Header="الإجمالي" Binding="{Binding TotalPrice, StringFormat={}{0:N2}}" Width="80" CellStyle="{StaticResource DataGridCellCentered}"/>
+                        <DataGridTextColumn Header="السائق" Binding="{Binding DriverName}" Width="100" CellStyle="{StaticResource DataGridCellRightAligned}"/>
+
+                        <DataGridTemplateColumn Header="العمليات" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Button ToolTip="تعديل" Style="{StaticResource ButtonWithIcon}" Margin="2,0"
+                                                Click="btnEdit_Click" Tag="{Binding Id}">
+                                            <materialDesign:PackIcon Kind="Edit" Width="18" Height="18" Foreground="#3498db"/>
+                                        </Button>
+
+                                        <Button ToolTip="حذف" Style="{StaticResource ButtonWithIcon}" Margin="2,0"
+                                                Click="btnDelete_Click" Tag="{Binding Id}">
+                                            <materialDesign:PackIcon Kind="Delete" Width="18" Height="18" Foreground="#e74c3c"/>
+                                        </Button>
+
+                                        <Button ToolTip="تعديل حالة الدفع" Style="{StaticResource ButtonWithIcon}" Margin="2,0"
+                                                Click="btnMarkAsPaid_Click" Tag="{Binding Id}" 
+                                                Visibility="{Binding IsPaid, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                            <materialDesign:PackIcon Kind="CashCheck" Width="18" Height="18" Foreground="#f39c12"/>
+                                        </Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Loading indicator -->
+                <Grid x:Name="loadingOverlay" Background="#80FFFFFF" Visibility="Collapsed">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <ProgressBar x:Name="progressBar" IsIndeterminate="True" Width="60" Height="60" 
+                                    Style="{StaticResource MaterialDesignCircularProgressBar}"/>
+                        <TextBlock Text="جاري التحميل..." Margin="0,10,0,0" FontSize="14"/>
+                    </StackPanel>
                 </Grid>
-            </materialDesign:Card>
-        </Grid>
+            </Grid>
+        </materialDesign:Card>
+
+        <!-- Summary Section -->
+        <materialDesign:Card Grid.Row="4" Margin="20,0,20,20" UniformCornerRadius="8">
+            <Grid Margin="16,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="إجمالي السعر:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtTotalPrice" Text="0.00" Margin="5,0,0,0" 
+                               Foreground="#3498db" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="إجمالي الربح:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtTotalProfit" Text="0.00" Margin="5,0,0,0" 
+                               Foreground="#27ae60" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="الإجمالي الكلي:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtGrandTotal" Text="0.00" Margin="5,0,0,0" 
+                               Foreground="#e74c3c" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="تم التسليم:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtDeliveredCount" Text="0" Margin="5,0,0,0" 
+                               Foreground="#27ae60" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="قيد التوصيل:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtPendingCount" Text="0" Margin="5,0,0,0" 
+                               Foreground="#f39c12" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
     </Grid>
 </Page>

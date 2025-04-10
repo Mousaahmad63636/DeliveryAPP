@@ -1,14 +1,13 @@
 ﻿using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
 using ExpressServicePOS.Infrastructure.Services;
+using ExpressServicePOS.UI.Converters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -59,26 +58,7 @@ namespace ExpressServicePOS.UI.Views
         public string ProfitDisplay { get; set; }
     }
 
-    public class InverseBoolToVisibilityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is bool boolValue)
-            {
-                return boolValue ? Visibility.Collapsed : Visibility.Visible;
-            }
-            return Visibility.Visible;
-        }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is Visibility visibility)
-            {
-                return visibility == Visibility.Collapsed;
-            }
-            return false;
-        }
-    }
 
     public partial class OrdersPage : Page
     {
@@ -93,6 +73,7 @@ namespace ExpressServicePOS.UI.Views
         private DateTime? _startDate;
         private DateTime? _endDate;
         private bool _isLoading = false;
+        private DeliveryStatus? _selectedStatus;
 
         public OrdersPage()
         {
@@ -126,6 +107,10 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
+                // Set default status filter to "تم التسليم" (Delivered)
+                cmbOrderStatus.SelectedIndex = 3; // Index of the "تم التسليم" item (0-based indexing)
+                _selectedStatus = DeliveryStatus.Delivered;
+
                 LoadOrdersAsync();
                 LoadCustomersAsync();
             }
@@ -139,6 +124,31 @@ namespace ExpressServicePOS.UI.Views
         private void OrdersPage_Unloaded(object sender, RoutedEventArgs e)
         {
             _serviceScope?.Dispose();
+        }
+
+        private void cmbOrderStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cmbOrderStatus.SelectedItem is ComboBoxItem selectedItem && selectedItem.Tag is string tagValue)
+                {
+                    if (int.TryParse(tagValue, out int statusValue) && statusValue >= 0)
+                    {
+                        _selectedStatus = (DeliveryStatus)statusValue;
+                    }
+                    else
+                    {
+                        _selectedStatus = null; // All statuses
+                    }
+
+                    ApplyFilters();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in status filter selection changed");
+                MessageBox.Show($"خطأ في تغيير فلتر الحالة: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async void LoadCustomersAsync()
@@ -211,7 +221,25 @@ namespace ExpressServicePOS.UI.Views
                                 .ToListAsync();
 
                             Application.Current.Dispatcher.Invoke(() => {
-                                ProcessLoadedOrders(orders);
+                                // Initialize with empty list if no orders found
+                                if (orders == null || !orders.Any())
+                                {
+                                    _orders = new List<OrderViewModel>();
+                                }
+                                else
+                                {
+                                    ProcessLoadedOrders(orders);
+                                }
+
+                                // Apply filters after data is loaded
+                                try
+                                {
+                                    ApplyFilters();
+                                }
+                                catch (Exception filterEx)
+                                {
+                                    _logger?.LogError(filterEx, "Error applying filters after loading orders");
+                                }
                             });
                         }
                     }
@@ -236,10 +264,16 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private void ProcessLoadedOrders(List<Order> orders)
+        private List<OrderViewModel> ProcessLoadedOrders(List<Order> orders)
         {
             try
             {
+                if (orders == null || !orders.Any())
+                {
+                    _orders = new List<OrderViewModel>();
+                    return _orders;
+                }
+
                 _orders = orders.Select(o => new OrderViewModel
                 {
                     Id = o.Id,
@@ -280,20 +314,22 @@ namespace ExpressServicePOS.UI.Views
                         : FormatAmount(o.DeliveryFee, o.Currency)
                 }).ToList();
 
-                ApplyFilters();
+                return _orders;
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error processing loaded orders");
                 MessageBox.Show($"خطأ في معالجة بيانات الطلبات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                _orders = new List<OrderViewModel>();
+                return _orders;
             }
         }
 
         private void ShowProgressBar(bool show)
         {
-            if (progressBar != null)
+            if (loadingOverlay != null)
             {
-                progressBar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                loadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
             }
         }
 
@@ -315,7 +351,15 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                if (_orders == null || !_orders.Any())
+                // Check if the DataGrid exists
+                if (dgOrders == null)
+                {
+                    _logger?.LogError("DataGrid dgOrders is null in ApplyFilters method");
+                    return;
+                }
+
+                // Initialize an empty list if orders is null
+                if (_orders == null)
                 {
                     _filteredOrders = new List<OrderViewModel>();
                     dgOrders.ItemsSource = _filteredOrders;
@@ -323,13 +367,16 @@ namespace ExpressServicePOS.UI.Views
                     return;
                 }
 
-                var filteredOrders = _orders;
+                // Copy the orders list to avoid modifying the original
+                var filteredOrders = new List<OrderViewModel>(_orders);
 
+                // Check if customer is selected and has a valid ID
                 if (_selectedCustomer != null && _selectedCustomer.Id > 0)
                 {
                     filteredOrders = filteredOrders.Where(o => o.CustomerId == _selectedCustomer.Id).ToList();
                 }
 
+                // Apply date filters if they exist
                 if (_startDate.HasValue)
                 {
                     filteredOrders = filteredOrders.Where(o => o.OrderDate.Date >= _startDate.Value.Date).ToList();
@@ -340,7 +387,19 @@ namespace ExpressServicePOS.UI.Views
                     filteredOrders = filteredOrders.Where(o => o.OrderDate.Date <= _endDate.Value.Date).ToList();
                 }
 
-                string searchTerm = txtSearch.Text?.Trim().ToLower() ?? "";
+                // Apply status filter
+                if (_selectedStatus.HasValue)
+                {
+                    filteredOrders = filteredOrders.Where(o => o.Status == _selectedStatus.Value).ToList();
+                }
+
+                // Safe access to text search
+                string searchTerm = "";
+                if (txtSearch != null)
+                {
+                    searchTerm = txtSearch.Text?.Trim().ToLower() ?? "";
+                }
+
                 if (!string.IsNullOrEmpty(searchTerm))
                 {
                     filteredOrders = filteredOrders.Where(o =>
@@ -357,7 +416,12 @@ namespace ExpressServicePOS.UI.Views
                 }
 
                 _filteredOrders = filteredOrders;
-                dgOrders.ItemsSource = _filteredOrders;
+
+                // Safe UI update
+                if (dgOrders != null)
+                {
+                    dgOrders.ItemsSource = _filteredOrders;
+                }
 
                 UpdateSummary();
             }
@@ -367,11 +431,18 @@ namespace ExpressServicePOS.UI.Views
                 MessageBox.Show($"خطأ في تطبيق الفلتر: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private void UpdateSummary()
         {
             try
             {
+                // Check if summary UI elements exist
+                if (txtTotalPrice == null || txtTotalProfit == null ||
+                    txtGrandTotal == null || txtDeliveredCount == null ||
+                    txtPendingCount == null)
+                {
+                    return;
+                }
+
                 if (_filteredOrders == null || !_filteredOrders.Any())
                 {
                     txtTotalPrice.Text = "0.00";
@@ -398,6 +469,7 @@ namespace ExpressServicePOS.UI.Views
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error updating summary");
+                // Don't show MessageBox here to avoid cascading errors
             }
         }
 
@@ -445,7 +517,8 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private void btnAddNewOrder_Click(object sender, RoutedEventArgs e)
+        // Replace this with your actual implementation of btnAddOrder_Click
+        private void btnAddOrder_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -469,6 +542,12 @@ namespace ExpressServicePOS.UI.Views
                 _logger?.LogError(ex, "Error in search button click");
                 MessageBox.Show($"خطأ في البحث: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        // Add this method to handle TextChanged events
+        private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // You can implement delayed search here if needed
         }
 
         private void txtSearch_KeyUp(object sender, KeyEventArgs e)
@@ -580,6 +659,10 @@ namespace ExpressServicePOS.UI.Views
                 _startDate = firstDayOfMonth;
                 _endDate = today;
 
+                // Set status filter to "تم التسليم" (Delivered)
+                cmbOrderStatus.SelectedIndex = 3; // Index of the "تم التسليم" item (0-based indexing)
+                _selectedStatus = DeliveryStatus.Delivered;
+
                 txtSearch.Text = string.Empty;
 
                 ApplyFilters();
@@ -591,27 +674,18 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private void dgOrders_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        // Add these methods to handle your DataGrid selection events
+        private void dgOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            try
-            {
-                if (dgOrders.SelectedItem is OrderViewModel selectedOrder)
-                {
-                    EditOrder(selectedOrder.Id);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error in datagrid double click");
-                MessageBox.Show($"خطأ في فتح الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            // Implement if needed
         }
 
-        private void btnEdit_Click(object sender, RoutedEventArgs e)
+        // Add these method stubs for the buttons in your XAML
+        private void btnEditOrder_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (sender is Button button && button.Tag is int orderId)
+                if (sender is Button button && button.CommandParameter is int orderId)
                 {
                     EditOrder(orderId);
                 }
@@ -620,6 +694,119 @@ namespace ExpressServicePOS.UI.Views
             {
                 _logger?.LogError(ex, "Error in edit button click");
                 MessageBox.Show($"خطأ في تعديل الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void btnDeleteOrder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button button && button.CommandParameter is int orderId)
+                {
+                    var result = MessageBox.Show("هل أنت متأكد من حذف هذا الطلب؟", "تأكيد الحذف",
+                            MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        DeleteOrder(orderId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in delete button click");
+                MessageBox.Show($"خطأ في حذف الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void btnPrintInvoice_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button button && button.CommandParameter is int orderId)
+                {
+                    PrintOrderInvoice(orderId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in print invoice button click");
+                MessageBox.Show($"خطأ في طباعة الفاتورة: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void btnPrint_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_filteredOrders == null || _filteredOrders.Count == 0)
+                {
+                    MessageBox.Show("لا توجد بيانات للطباعة", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var document = CreateTablePrintDocument();
+
+                PrintDialog printDialog = new PrintDialog();
+
+                if (printDialog.PrintTicket != null)
+                {
+                    printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Landscape;
+                }
+
+                if (printDialog.ShowDialog() == true)
+                {
+                    document.PageHeight = printDialog.PrintableAreaHeight;
+                    document.PageWidth = printDialog.PrintableAreaWidth;
+
+                    IDocumentPaginatorSource paginatorSource = document;
+                    printDialog.PrintDocument(
+                        paginatorSource.DocumentPaginator,
+                        "تقرير الطلبات - " + DateTime.Now.ToString("yyyy-MM-dd"));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error printing table");
+                MessageBox.Show($"خطأ أثناء طباعة الجدول: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void btnExport_Click(object sender, RoutedEventArgs e)
+        {
+            // Implement your export functionality
+        }
+
+        private async void DeleteOrder(int orderId)
+        {
+            try
+            {
+                ShowProgressBar(true);
+
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var order = await dbContext.Orders.FindAsync(orderId);
+                    if (order != null)
+                    {
+                        dbContext.Orders.Remove(order);
+                        await dbContext.SaveChangesAsync();
+                        LoadOrdersAsync();
+                        MessageBox.Show("تم حذف الطلب بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("الطلب غير موجود أو ربما تم حذفه مسبقاً", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error deleting order");
+                MessageBox.Show($"خطأ أثناء حذف الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ShowProgressBar(false);
             }
         }
 
@@ -659,6 +846,244 @@ namespace ExpressServicePOS.UI.Views
             finally
             {
                 ShowProgressBar(false);
+            }
+        }
+
+        private async void PrintOrderInvoice(int orderId)
+        {
+            try
+            {
+                ShowProgressBar(true);
+
+                using (var dbContext = await _dbContextFactory.CreateDbContextAsync())
+                {
+                    var order = await dbContext.Orders
+                        .Include(o => o.Customer)
+                        .Include(o => o.Driver)
+                        .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                    if (order == null)
+                    {
+                        MessageBox.Show("الطلب غير موجود", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    var receiptDocument = await _printService.CreateOrderReceiptAsync(orderId);
+                    _printService.ShowPrintPreview(receiptDocument);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error printing invoice");
+                MessageBox.Show($"خطأ أثناء طباعة الفاتورة: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ShowProgressBar(false);
+            }
+        }
+
+        private FlowDocument CreateTablePrintDocument()
+        {
+            var document = new FlowDocument
+            {
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                PagePadding = new Thickness(20),
+                FlowDirection = FlowDirection.RightToLeft,
+                ColumnWidth = double.MaxValue,
+                PageWidth = 11.69 * 96,
+                PageHeight = 8.27 * 96
+            };
+
+            var headerPara = new Paragraph(new Run("EXPRESS SERVICE TEAM"))
+            {
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            document.Blocks.Add(headerPara);
+
+            var datePara = new Paragraph(new Run($"تاريخ الطباعة: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"))
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            document.Blocks.Add(datePara);
+
+            var filterPara = new Paragraph
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            if (_selectedCustomer != null)
+            {
+                string customerDisplay = string.IsNullOrEmpty(_selectedCustomer.Class) || _selectedCustomer.Class == "X" ?
+                    _selectedCustomer.Name : $"{_selectedCustomer.Name} - {_selectedCustomer.Class}";
+                filterPara.Inlines.Add(new Run($"المرسل: {customerDisplay} | "));
+            }
+
+            if (_startDate.HasValue && _endDate.HasValue)
+            {
+                filterPara.Inlines.Add(new Run($"الفترة: من {_startDate.Value:yyyy-MM-dd} إلى {_endDate.Value:yyyy-MM-dd}"));
+            }
+
+            // Add status filter info to report
+            if (_selectedStatus.HasValue)
+            {
+                string statusText = GetStatusText(_selectedStatus.Value);
+                filterPara.Inlines.Add(new Run($" | حالة الطلبات: {statusText}"));
+            }
+
+            document.Blocks.Add(filterPara);
+
+            var summaryPara = new Paragraph
+            {
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(0, 0, 0, 5),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            summaryPara.Inlines.Add(new Run("إجمالي السعر: ") { FontWeight = FontWeights.Bold });
+            summaryPara.Inlines.Add(new Run(txtTotalPrice.Text));
+            summaryPara.Inlines.Add(new Run("   |   "));
+            summaryPara.Inlines.Add(new Run("إجمالي الربح: ") { FontWeight = FontWeights.Bold });
+            summaryPara.Inlines.Add(new Run(txtTotalProfit.Text));
+            summaryPara.Inlines.Add(new Run("   |   "));
+            summaryPara.Inlines.Add(new Run("الإجمالي الكلي: ") { FontWeight = FontWeights.Bold });
+            summaryPara.Inlines.Add(new Run(txtGrandTotal.Text));
+            summaryPara.Inlines.Add(new Run("   |   "));
+            summaryPara.Inlines.Add(new Run("تم التسليم: ") { FontWeight = FontWeights.Bold });
+            summaryPara.Inlines.Add(new Run(txtDeliveredCount.Text));
+            summaryPara.Inlines.Add(new Run("   |   "));
+            summaryPara.Inlines.Add(new Run("قيد التوصيل: ") { FontWeight = FontWeights.Bold });
+            summaryPara.Inlines.Add(new Run(txtPendingCount.Text));
+
+            document.Blocks.Add(summaryPara);
+
+            var table = new Table
+            {
+                CellSpacing = 0,
+                BorderBrush = Brushes.Black,
+                BorderThickness = new Thickness(0.5)
+            };
+
+            // Define the columns to match the DataGrid layout
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Order # with Class
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Sender (Customer)
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Name
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Address
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Order Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Payment Date (NEW COLUMN)
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Status
+            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Amount
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Profit/Subscription
+            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Total
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Driver
+
+            var headerRow = new TableRow();
+            headerRow.Background = Brushes.LightGray;
+
+            // Add headers that match the DataGrid
+            headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("المرسل", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("المستلم", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("هاتف المستلم", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("العنوان", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("تاريخ الطلب", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("تاريخ الدفع", FontWeights.Bold)); // New header
+            headerRow.Cells.Add(CreateTableCell("الحالة", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("السعر", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("الربح", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("الإجمالي", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("السائق", FontWeights.Bold));
+
+            var headerRowGroup = new TableRowGroup();
+            headerRowGroup.Rows.Add(headerRow);
+            table.RowGroups.Add(headerRowGroup);
+
+            var dataRowGroup = new TableRowGroup();
+
+            if (_filteredOrders != null)
+            {
+                int rowIndex = 0;
+                foreach (var order in _filteredOrders)
+                {
+                    var row = new TableRow();
+
+                    if (rowIndex % 2 == 1)
+                    {
+                        row.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
+                    }
+
+                    // Add cells to match the DataGrid
+                    row.Cells.Add(CreateTableCell(order.DisplayOrderNumber));
+                    row.Cells.Add(CreateTableCell(order.CustomerName));
+                    row.Cells.Add(CreateTableCell(order.RecipientName));
+                    row.Cells.Add(CreateTableCell(order.RecipientPhone));
+                    row.Cells.Add(CreateTableCell(order.CustomerAddress));
+                    row.Cells.Add(CreateTableCell(order.OrderDate.ToString("yyyy-MM-dd")));
+                    row.Cells.Add(CreateTableCell(order.DatePaid?.ToString("yyyy-MM-dd") ?? "-")); // New payment date cell
+                    row.Cells.Add(CreateTableCell(order.StatusText));
+                    row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
+                    row.Cells.Add(CreateTableCell(order.ProfitDisplay));
+                    row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
+                    row.Cells.Add(CreateTableCell(order.DriverName));
+
+                    dataRowGroup.Rows.Add(row);
+                    rowIndex++;
+                }
+            }
+
+            table.RowGroups.Add(dataRowGroup);
+            document.Blocks.Add(table);
+
+            var footerPara = new Paragraph(new Run(" EXPRESS SERVICE TEAM © " + DateTime.Now.Year))
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 10, 0, 0),
+                FontStyle = FontStyles.Italic,
+                FontSize = 9
+            };
+            document.Blocks.Add(footerPara);
+
+            return document;
+        }
+        // Make sure to add these methods to your OrdersPage class
+
+        private void dgOrders_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                if (dgOrders.SelectedItem is OrderViewModel selectedOrder)
+                {
+                    EditOrder(selectedOrder.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in datagrid double click");
+                MessageBox.Show($"خطأ في فتح الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void btnEdit_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button button && button.Tag is int orderId)
+                {
+                    EditOrder(orderId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in edit button click");
+                MessageBox.Show($"خطأ في تعديل الطلب: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -749,205 +1174,6 @@ namespace ExpressServicePOS.UI.Views
                 ShowProgressBar(false);
             }
         }
-
-        private void btnPrintTable_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (_filteredOrders == null || _filteredOrders.Count == 0)
-                {
-                    MessageBox.Show("لا توجد بيانات للطباعة", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-
-                var document = CreateTablePrintDocument();
-
-                PrintDialog printDialog = new PrintDialog();
-
-                if (printDialog.PrintTicket != null)
-                {
-                    printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Landscape;
-                }
-
-                if (printDialog.ShowDialog() == true)
-                {
-                    document.PageHeight = printDialog.PrintableAreaHeight;
-                    document.PageWidth = printDialog.PrintableAreaWidth;
-
-                    IDocumentPaginatorSource paginatorSource = document;
-                    printDialog.PrintDocument(
-                        paginatorSource.DocumentPaginator,
-                        "تقرير الطلبات - " + DateTime.Now.ToString("yyyy-MM-dd"));
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error printing table");
-                MessageBox.Show($"خطأ أثناء طباعة الجدول: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private FlowDocument CreateTablePrintDocument()
-        {
-            var document = new FlowDocument
-            {
-                FontFamily = new FontFamily("Arial"),
-                FontSize = 10,
-                PagePadding = new Thickness(20),
-                FlowDirection = FlowDirection.RightToLeft,
-                ColumnWidth = double.MaxValue,
-                PageWidth = 11.69 * 96,
-                PageHeight = 8.27 * 96
-            };
-
-            var headerPara = new Paragraph(new Run("خدمة اكسبرس - تقرير الطلبات"))
-            {
-                FontSize = 16,
-                FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            document.Blocks.Add(headerPara);
-
-            var datePara = new Paragraph(new Run($"تاريخ الطباعة: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"))
-            {
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            document.Blocks.Add(datePara);
-
-            var filterPara = new Paragraph
-            {
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            if (_selectedCustomer != null)
-            {
-                string customerDisplay = string.IsNullOrEmpty(_selectedCustomer.Class) || _selectedCustomer.Class == "X" ?
-                    _selectedCustomer.Name : $"{_selectedCustomer.Name} - {_selectedCustomer.Class}";
-                filterPara.Inlines.Add(new Run($"المرسل: {customerDisplay} | "));
-            }
-
-            if (_startDate.HasValue && _endDate.HasValue)
-            {
-                filterPara.Inlines.Add(new Run($"الفترة: من {_startDate.Value:yyyy-MM-dd} إلى {_endDate.Value:yyyy-MM-dd}"));
-            }
-
-            document.Blocks.Add(filterPara);
-
-            var summaryPara = new Paragraph
-            {
-                BorderBrush = Brushes.LightGray,
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                Padding = new Thickness(0, 0, 0, 5),
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            summaryPara.Inlines.Add(new Run("إجمالي السعر: ") { FontWeight = FontWeights.Bold });
-            summaryPara.Inlines.Add(new Run(txtTotalPrice.Text));
-            summaryPara.Inlines.Add(new Run("   |   "));
-            summaryPara.Inlines.Add(new Run("إجمالي الربح: ") { FontWeight = FontWeights.Bold });
-            summaryPara.Inlines.Add(new Run(txtTotalProfit.Text));
-            summaryPara.Inlines.Add(new Run("   |   "));
-            summaryPara.Inlines.Add(new Run("الإجمالي الكلي: ") { FontWeight = FontWeights.Bold });
-            summaryPara.Inlines.Add(new Run(txtGrandTotal.Text));
-            summaryPara.Inlines.Add(new Run("   |   "));
-            summaryPara.Inlines.Add(new Run("تم التسليم: ") { FontWeight = FontWeights.Bold });
-            summaryPara.Inlines.Add(new Run(txtDeliveredCount.Text));
-            summaryPara.Inlines.Add(new Run("   |   "));
-            summaryPara.Inlines.Add(new Run("قيد التوصيل: ") { FontWeight = FontWeights.Bold });
-            summaryPara.Inlines.Add(new Run(txtPendingCount.Text));
-
-            document.Blocks.Add(summaryPara);
-
-            var table = new Table
-            {
-                CellSpacing = 0,
-                BorderBrush = Brushes.Black,
-                BorderThickness = new Thickness(0.5)
-            };
-
-            // Define the columns to match the DataGrid layout
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Order # with Class
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Sender (Customer)
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Name
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Phone
-            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Address
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Status
-            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Amount
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Profit/Subscription
-            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Total
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Driver
-
-            var headerRow = new TableRow();
-            headerRow.Background = Brushes.LightGray;
-
-            // Add headers that match the DataGrid
-            headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("المرسل", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("المستلم", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("هاتف المستلم", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("العنوان", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("تاريخ الطلب", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("الحالة", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("السعر", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("الربح", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("الإجمالي", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("السائق", FontWeights.Bold));
-
-            var headerRowGroup = new TableRowGroup();
-            headerRowGroup.Rows.Add(headerRow);
-            table.RowGroups.Add(headerRowGroup);
-
-            var dataRowGroup = new TableRowGroup();
-
-            if (_filteredOrders != null)
-            {
-                int rowIndex = 0;
-                foreach (var order in _filteredOrders)
-                {
-                    var row = new TableRow();
-
-                    if (rowIndex % 2 == 1)
-                    {
-                        row.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
-                    }
-
-                    // Add cells to match the DataGrid
-                    row.Cells.Add(CreateTableCell(order.DisplayOrderNumber));
-                    row.Cells.Add(CreateTableCell(order.CustomerName));
-                    row.Cells.Add(CreateTableCell(order.RecipientName));
-                    row.Cells.Add(CreateTableCell(order.RecipientPhone));
-                    row.Cells.Add(CreateTableCell(order.CustomerAddress));
-                    row.Cells.Add(CreateTableCell(order.OrderDate.ToString("yyyy-MM-dd")));
-                    row.Cells.Add(CreateTableCell(order.StatusText));
-                    row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
-                    row.Cells.Add(CreateTableCell(order.ProfitDisplay));
-                    row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
-                    row.Cells.Add(CreateTableCell(order.DriverName));
-
-                    dataRowGroup.Rows.Add(row);
-                    rowIndex++;
-                }
-            }
-
-            table.RowGroups.Add(dataRowGroup);
-            document.Blocks.Add(table);
-
-            var footerPara = new Paragraph(new Run("جميع الحقوق محفوظة لخدمة اكسبرس © " + DateTime.Now.Year))
-            {
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 0),
-                FontStyle = FontStyles.Italic,
-                FontSize = 9
-            };
-            document.Blocks.Add(footerPara);
-
-            return document;
-        }
-
         private TableCell CreateTableCell(string text, FontWeight fontWeight = default)
         {
             var paragraph = new Paragraph(new Run(text ?? "-"))
@@ -962,20 +1188,6 @@ namespace ExpressServicePOS.UI.Views
             }
 
             return new TableCell(paragraph);
-        }
-
-        private void btnRefresh_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                LoadOrdersAsync();
-                LoadCustomersAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error refreshing data");
-                MessageBox.Show($"خطأ أثناء تحديث البيانات: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
         }
     }
 }
