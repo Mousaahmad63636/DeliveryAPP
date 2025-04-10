@@ -751,7 +751,8 @@ namespace ExpressServicePOS.UI.Views
 
                 if (printDialog.PrintTicket != null)
                 {
-                    printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Landscape;
+                    // Change from Landscape to Portrait
+                    printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Portrait;
                 }
 
                 if (printDialog.ShowDialog() == true)
@@ -889,18 +890,23 @@ namespace ExpressServicePOS.UI.Views
             {
                 FontFamily = new FontFamily("Arial"),
                 FontSize = 10,
-                PagePadding = new Thickness(20),
+                // Reduce padding to use more of the page width
+                PagePadding = new Thickness(10),
                 FlowDirection = FlowDirection.RightToLeft,
+                // Use maximum width available
                 ColumnWidth = double.MaxValue,
-                PageWidth = 11.69 * 96,
-                PageHeight = 8.27 * 96
+                // Standard A4 dimensions for portrait
+                PageWidth = 8.27 * 96,
+                PageHeight = 11.69 * 96
             };
+
 
             var headerPara = new Paragraph(new Run("EXPRESS SERVICE TEAM"))
             {
                 FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Center,
+                // Reduce margins to use more width
                 Margin = new Thickness(0, 0, 0, 10)
             };
             document.Blocks.Add(headerPara);
@@ -969,21 +975,34 @@ namespace ExpressServicePOS.UI.Views
                 CellSpacing = 0,
                 BorderBrush = Brushes.Black,
                 BorderThickness = new Thickness(0.5)
+                // Remove the Width property as it doesn't exist on Table
             };
 
-            // Define the columns to match the DataGrid layout
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Order # with Class
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Sender (Customer)
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Name
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient Phone
-            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Address
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Order Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Payment Date (NEW COLUMN)
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Status
-            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Amount
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Profit/Subscription
-            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Total
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Driver
+            var titleRowGroup = new TableRowGroup();
+            var titleRow = new TableRow();
+            var titleCell = new TableCell();
+            titleCell.ColumnSpan = 12; // Spans all columns
+            titleCell.TextAlignment = TextAlignment.Center;
+            titleCell.Padding = new Thickness(2);
+            titleCell.Blocks.Add(new Paragraph(new Run("جدول الطلبات") { FontWeight = FontWeights.Bold, FontSize = 14 }));
+            titleRow.Cells.Add(titleCell);
+            titleRowGroup.Rows.Add(titleRow);
+            table.RowGroups.Add(titleRowGroup);
+
+
+            // Wider column widths that utilize more of the page width
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Order # with Class
+            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Sender (Customer)
+            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Recipient Name
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // Recipient Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(120) });  // Address
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Order Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Payment Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Status
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Amount
+            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Profit/Subscription
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Total
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // Driver
 
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
