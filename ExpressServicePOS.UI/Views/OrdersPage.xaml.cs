@@ -751,7 +751,6 @@ namespace ExpressServicePOS.UI.Views
 
                 if (printDialog.PrintTicket != null)
                 {
-                    // Change from Landscape to Portrait
                     printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Portrait;
                 }
 
@@ -772,6 +771,7 @@ namespace ExpressServicePOS.UI.Views
                 MessageBox.Show($"خطأ أثناء طباعة الجدول: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
 
         private void btnExport_Click(object sender, RoutedEventArgs e)
         {
@@ -889,24 +889,19 @@ namespace ExpressServicePOS.UI.Views
             var document = new FlowDocument
             {
                 FontFamily = new FontFamily("Arial"),
-                FontSize = 10,
-                // Reduce padding to use more of the page width
-                PagePadding = new Thickness(10),
+                FontSize = 8,
+                PagePadding = new Thickness(5),
                 FlowDirection = FlowDirection.RightToLeft,
-                // Use maximum width available
                 ColumnWidth = double.MaxValue,
-                // Standard A4 dimensions for portrait
                 PageWidth = 8.27 * 96,
                 PageHeight = 11.69 * 96
             };
-
 
             var headerPara = new Paragraph(new Run("EXPRESS SERVICE TEAM"))
             {
                 FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Center,
-                // Reduce margins to use more width
                 Margin = new Thickness(0, 0, 0, 10)
             };
             document.Blocks.Add(headerPara);
@@ -936,7 +931,6 @@ namespace ExpressServicePOS.UI.Views
                 filterPara.Inlines.Add(new Run($"الفترة: من {_startDate.Value:yyyy-MM-dd} إلى {_endDate.Value:yyyy-MM-dd}"));
             }
 
-            // Add status filter info to report
             if (_selectedStatus.HasValue)
             {
                 string statusText = GetStatusText(_selectedStatus.Value);
@@ -975,49 +969,30 @@ namespace ExpressServicePOS.UI.Views
                 CellSpacing = 0,
                 BorderBrush = Brushes.Black,
                 BorderThickness = new Thickness(0.5)
-                // Remove the Width property as it doesn't exist on Table
             };
 
-            var titleRowGroup = new TableRowGroup();
-            var titleRow = new TableRow();
-            var titleCell = new TableCell();
-            titleCell.ColumnSpan = 12; // Spans all columns
-            titleCell.TextAlignment = TextAlignment.Center;
-            titleCell.Padding = new Thickness(2);
-            titleCell.Blocks.Add(new Paragraph(new Run("جدول الطلبات") { FontWeight = FontWeights.Bold, FontSize = 14 }));
-            titleRow.Cells.Add(titleCell);
-            titleRowGroup.Rows.Add(titleRow);
-            table.RowGroups.Add(titleRowGroup);
-
-
-            // Wider column widths that utilize more of the page width
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Order # with Class
-            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Sender (Customer)
-            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Recipient Name
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // Recipient Phone
-            table.Columns.Add(new TableColumn { Width = new GridLength(120) });  // Address
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Order Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Payment Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Status
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Amount
-            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Profit/Subscription
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Total
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });   // Driver
+            table.Columns.Add(new TableColumn { Width = new GridLength(55) });   // Order #
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Customer
+            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Address
+            table.Columns.Add(new TableColumn { Width = new GridLength(55) });   // Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(55) });   // Status
+            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Price
+            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Total
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Driver
 
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
 
-            // Add headers that match the DataGrid
             headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("المرسل", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("المستلم", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("هاتف المستلم", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("العنوان", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("تاريخ الطلب", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("تاريخ الدفع", FontWeights.Bold)); // New header
             headerRow.Cells.Add(CreateTableCell("الحالة", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("السعر", FontWeights.Bold));
-            headerRow.Cells.Add(CreateTableCell("الربح", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الإجمالي", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("السائق", FontWeights.Bold));
 
@@ -1039,17 +1014,14 @@ namespace ExpressServicePOS.UI.Views
                         row.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
                     }
 
-                    // Add cells to match the DataGrid
                     row.Cells.Add(CreateTableCell(order.DisplayOrderNumber));
                     row.Cells.Add(CreateTableCell(order.CustomerName));
                     row.Cells.Add(CreateTableCell(order.RecipientName));
                     row.Cells.Add(CreateTableCell(order.RecipientPhone));
                     row.Cells.Add(CreateTableCell(order.CustomerAddress));
                     row.Cells.Add(CreateTableCell(order.OrderDate.ToString("yyyy-MM-dd")));
-                    row.Cells.Add(CreateTableCell(order.DatePaid?.ToString("yyyy-MM-dd") ?? "-")); // New payment date cell
                     row.Cells.Add(CreateTableCell(order.StatusText));
                     row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
-                    row.Cells.Add(CreateTableCell(order.ProfitDisplay));
                     row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.DriverName));
 
@@ -1072,7 +1044,6 @@ namespace ExpressServicePOS.UI.Views
 
             return document;
         }
-        // Make sure to add these methods to your OrdersPage class
 
         private void dgOrders_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
