@@ -58,8 +58,6 @@ namespace ExpressServicePOS.UI.Views
         public string ProfitDisplay { get; set; }
     }
 
-
-
     public partial class OrdersPage : Page
     {
         private readonly IServiceScope _serviceScope;
@@ -74,6 +72,8 @@ namespace ExpressServicePOS.UI.Views
         private DateTime? _endDate;
         private bool _isLoading = false;
         private DeliveryStatus? _selectedStatus;
+        private bool _filterByDeliveryDate = false;
+        private bool _showOnlyPaid = false;
 
         public OrdersPage()
         {
@@ -107,9 +107,16 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                // Set default status filter to "تم التسليم" (Delivered)
-                cmbOrderStatus.SelectedIndex = 3; // Index of the "تم التسليم" item (0-based indexing)
+                cmbOrderStatus.SelectedIndex = 3;
                 _selectedStatus = DeliveryStatus.Delivered;
+                _filterByDeliveryDate = true;
+                _showOnlyPaid = true;
+
+                if (chkFilterByDeliveryDate != null)
+                    chkFilterByDeliveryDate.IsChecked = true;
+
+                if (chkShowOnlyPaid != null)
+                    chkShowOnlyPaid.IsChecked = true;
 
                 LoadOrdersAsync();
                 LoadCustomersAsync();
@@ -138,7 +145,7 @@ namespace ExpressServicePOS.UI.Views
                     }
                     else
                     {
-                        _selectedStatus = null; // All statuses
+                        _selectedStatus = null;
                     }
 
                     ApplyFilters();
@@ -149,6 +156,30 @@ namespace ExpressServicePOS.UI.Views
                 _logger?.LogError(ex, "Error in status filter selection changed");
                 MessageBox.Show($"خطأ في تغيير فلتر الحالة: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void chkFilterByDeliveryDate_Checked(object sender, RoutedEventArgs e)
+        {
+            _filterByDeliveryDate = true;
+            ApplyFilters();
+        }
+
+        private void chkFilterByDeliveryDate_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _filterByDeliveryDate = false;
+            ApplyFilters();
+        }
+
+        private void chkShowOnlyPaid_Checked(object sender, RoutedEventArgs e)
+        {
+            _showOnlyPaid = true;
+            ApplyFilters();
+        }
+
+        private void chkShowOnlyPaid_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _showOnlyPaid = false;
+            ApplyFilters();
         }
 
         private async void LoadCustomersAsync()
@@ -221,7 +252,6 @@ namespace ExpressServicePOS.UI.Views
                                 .ToListAsync();
 
                             Application.Current.Dispatcher.Invoke(() => {
-                                // Initialize with empty list if no orders found
                                 if (orders == null || !orders.Any())
                                 {
                                     _orders = new List<OrderViewModel>();
@@ -231,7 +261,6 @@ namespace ExpressServicePOS.UI.Views
                                     ProcessLoadedOrders(orders);
                                 }
 
-                                // Apply filters after data is loaded
                                 try
                                 {
                                     ApplyFilters();
@@ -351,14 +380,12 @@ namespace ExpressServicePOS.UI.Views
         {
             try
             {
-                // Check if the DataGrid exists
                 if (dgOrders == null)
                 {
                     _logger?.LogError("DataGrid dgOrders is null in ApplyFilters method");
                     return;
                 }
 
-                // Initialize an empty list if orders is null
                 if (_orders == null)
                 {
                     _filteredOrders = new List<OrderViewModel>();
@@ -367,33 +394,53 @@ namespace ExpressServicePOS.UI.Views
                     return;
                 }
 
-                // Copy the orders list to avoid modifying the original
                 var filteredOrders = new List<OrderViewModel>(_orders);
 
-                // Check if customer is selected and has a valid ID
                 if (_selectedCustomer != null && _selectedCustomer.Id > 0)
                 {
                     filteredOrders = filteredOrders.Where(o => o.CustomerId == _selectedCustomer.Id).ToList();
                 }
 
-                // Apply date filters if they exist
+                bool useDeliveryDate = _filterByDeliveryDate && _selectedStatus.HasValue && _selectedStatus.Value == DeliveryStatus.Delivered;
+
                 if (_startDate.HasValue)
                 {
-                    filteredOrders = filteredOrders.Where(o => o.OrderDate.Date >= _startDate.Value.Date).ToList();
+                    if (useDeliveryDate)
+                    {
+                        filteredOrders = filteredOrders.Where(o =>
+                            o.DatePaid.HasValue &&
+                            o.DatePaid.Value.Date >= _startDate.Value.Date).ToList();
+                    }
+                    else
+                    {
+                        filteredOrders = filteredOrders.Where(o => o.OrderDate.Date >= _startDate.Value.Date).ToList();
+                    }
                 }
 
                 if (_endDate.HasValue)
                 {
-                    filteredOrders = filteredOrders.Where(o => o.OrderDate.Date <= _endDate.Value.Date).ToList();
+                    if (useDeliveryDate)
+                    {
+                        filteredOrders = filteredOrders.Where(o =>
+                            o.DatePaid.HasValue &&
+                            o.DatePaid.Value.Date <= _endDate.Value.Date).ToList();
+                    }
+                    else
+                    {
+                        filteredOrders = filteredOrders.Where(o => o.OrderDate.Date <= _endDate.Value.Date).ToList();
+                    }
                 }
 
-                // Apply status filter
                 if (_selectedStatus.HasValue)
                 {
                     filteredOrders = filteredOrders.Where(o => o.Status == _selectedStatus.Value).ToList();
                 }
 
-                // Safe access to text search
+                if (_showOnlyPaid && _selectedStatus.HasValue && _selectedStatus.Value == DeliveryStatus.Delivered)
+                {
+                    filteredOrders = filteredOrders.Where(o => o.IsPaid).ToList();
+                }
+
                 string searchTerm = "";
                 if (txtSearch != null)
                 {
@@ -417,7 +464,6 @@ namespace ExpressServicePOS.UI.Views
 
                 _filteredOrders = filteredOrders;
 
-                // Safe UI update
                 if (dgOrders != null)
                 {
                     dgOrders.ItemsSource = _filteredOrders;
@@ -431,11 +477,11 @@ namespace ExpressServicePOS.UI.Views
                 MessageBox.Show($"خطأ في تطبيق الفلتر: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void UpdateSummary()
         {
             try
             {
-                // Check if summary UI elements exist
                 if (txtTotalPrice == null || txtTotalProfit == null ||
                     txtGrandTotal == null || txtDeliveredCount == null ||
                     txtPendingCount == null)
@@ -469,7 +515,6 @@ namespace ExpressServicePOS.UI.Views
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error updating summary");
-                // Don't show MessageBox here to avoid cascading errors
             }
         }
 
@@ -517,7 +562,6 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        // Replace this with your actual implementation of btnAddOrder_Click
         private void btnAddOrder_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -544,10 +588,8 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        // Add this method to handle TextChanged events
         private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // You can implement delayed search here if needed
         }
 
         private void txtSearch_KeyUp(object sender, KeyEventArgs e)
@@ -573,7 +615,6 @@ namespace ExpressServicePOS.UI.Views
                 var selectedItem = cmbCustomers.SelectedItem;
                 if (selectedItem != null)
                 {
-                    // Get the Id property using reflection to avoid using dynamic in a pattern
                     var idProperty = selectedItem.GetType().GetProperty("Id");
                     if (idProperty != null)
                     {
@@ -585,7 +626,6 @@ namespace ExpressServicePOS.UI.Views
                         }
                         else
                         {
-                            // Try to get the RawCustomer property if it exists
                             var rawCustomerProperty = selectedItem.GetType().GetProperty("RawCustomer");
                             if (rawCustomerProperty != null)
                             {
@@ -601,7 +641,6 @@ namespace ExpressServicePOS.UI.Views
                             }
                             else
                             {
-                                // If no RawCustomer property, try to cast directly to Customer
                                 _selectedCustomer = selectedItem as Customer;
                                 if (_selectedCustomer == null)
                                 {
@@ -659,9 +698,16 @@ namespace ExpressServicePOS.UI.Views
                 _startDate = firstDayOfMonth;
                 _endDate = today;
 
-                // Set status filter to "تم التسليم" (Delivered)
-                cmbOrderStatus.SelectedIndex = 3; // Index of the "تم التسليم" item (0-based indexing)
+                cmbOrderStatus.SelectedIndex = 3;
                 _selectedStatus = DeliveryStatus.Delivered;
+
+                if (chkFilterByDeliveryDate != null)
+                    chkFilterByDeliveryDate.IsChecked = true;
+                _filterByDeliveryDate = true;
+
+                if (chkShowOnlyPaid != null)
+                    chkShowOnlyPaid.IsChecked = true;
+                _showOnlyPaid = true;
 
                 txtSearch.Text = string.Empty;
 
@@ -674,13 +720,10 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        // Add these methods to handle your DataGrid selection events
         private void dgOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Implement if needed
         }
 
-        // Add these method stubs for the buttons in your XAML
         private void btnEditOrder_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -772,10 +815,8 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-
         private void btnExport_Click(object sender, RoutedEventArgs e)
         {
-            // Implement your export functionality
         }
 
         private async void DeleteOrder(int orderId)
@@ -890,7 +931,8 @@ namespace ExpressServicePOS.UI.Views
             {
                 FontFamily = new FontFamily("Arial"),
                 FontSize = 8,
-                PagePadding = new Thickness(5),
+                // Increase page padding, especially at top and right
+                PagePadding = new Thickness(15, 25, 15, 15), // Left, Top, Right, Bottom
                 FlowDirection = FlowDirection.RightToLeft,
                 ColumnWidth = double.MaxValue,
                 PageWidth = 8.27 * 96,
@@ -902,7 +944,8 @@ namespace ExpressServicePOS.UI.Views
                 FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
+                // Increase top margin to push content down
+                Margin = new Thickness(0, 20, 0, 10)
             };
             document.Blocks.Add(headerPara);
 
@@ -928,13 +971,17 @@ namespace ExpressServicePOS.UI.Views
 
             if (_startDate.HasValue && _endDate.HasValue)
             {
-                filterPara.Inlines.Add(new Run($"الفترة: من {_startDate.Value:yyyy-MM-dd} إلى {_endDate.Value:yyyy-MM-dd}"));
+                string dateRangeType = _filterByDeliveryDate && _selectedStatus.HasValue && _selectedStatus.Value == DeliveryStatus.Delivered ?
+                    "تاريخ التسليم والدفع" : "تاريخ الطلب";
+
+                filterPara.Inlines.Add(new Run($"الفترة ({dateRangeType}): من {_startDate.Value:yyyy-MM-dd} إلى {_endDate.Value:yyyy-MM-dd}"));
             }
 
             if (_selectedStatus.HasValue)
             {
                 string statusText = GetStatusText(_selectedStatus.Value);
-                filterPara.Inlines.Add(new Run($" | حالة الطلبات: {statusText}"));
+                string paidText = _showOnlyPaid && _selectedStatus.Value == DeliveryStatus.Delivered ? " مدفوع" : "";
+                filterPara.Inlines.Add(new Run($" | حالة الطلبات: {statusText}{paidText}"));
             }
 
             document.Blocks.Add(filterPara);
@@ -968,19 +1015,22 @@ namespace ExpressServicePOS.UI.Views
             {
                 CellSpacing = 0,
                 BorderBrush = Brushes.Black,
-                BorderThickness = new Thickness(0.5)
+                BorderThickness = new Thickness(0.5),
+                // Add margin to the table to ensure it's not too close to edges
+                Margin = new Thickness(5, 0, 5, 0)
             };
 
-            table.Columns.Add(new TableColumn { Width = new GridLength(55) });   // Order #
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Customer
-            table.Columns.Add(new TableColumn { Width = new GridLength(70) });   // Recipient
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Phone
-            table.Columns.Add(new TableColumn { Width = new GridLength(90) });   // Address
-            table.Columns.Add(new TableColumn { Width = new GridLength(55) });   // Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(55) });   // Status
+            // Increased column widths
+            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Order #
+            table.Columns.Add(new TableColumn { Width = new GridLength(75) });   // Customer
+            table.Columns.Add(new TableColumn { Width = new GridLength(75) });   // Recipient
+            table.Columns.Add(new TableColumn { Width = new GridLength(65) });   // Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(85) });   // Address
+            table.Columns.Add(new TableColumn { Width = new GridLength(65) });   // Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Status
             table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Price
             table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Total
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Driver
+            table.Columns.Add(new TableColumn { Width = new GridLength(65) });   // Driver
 
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
@@ -1036,7 +1086,7 @@ namespace ExpressServicePOS.UI.Views
             var footerPara = new Paragraph(new Run(" EXPRESS SERVICE TEAM © " + DateTime.Now.Year))
             {
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 0),
+                Margin = new Thickness(0, 15, 0, 0),
                 FontStyle = FontStyles.Italic,
                 FontSize = 9
             };
@@ -1164,6 +1214,7 @@ namespace ExpressServicePOS.UI.Views
                 ShowProgressBar(false);
             }
         }
+
         private TableCell CreateTableCell(string text, FontWeight fontWeight = default)
         {
             var paragraph = new Paragraph(new Run(text ?? "-"))
