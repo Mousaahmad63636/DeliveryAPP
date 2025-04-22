@@ -789,16 +789,16 @@ namespace ExpressServicePOS.UI.Views
                 }
 
                 var document = CreateTablePrintDocument();
-
                 PrintDialog printDialog = new PrintDialog();
 
                 if (printDialog.PrintTicket != null)
                 {
-                    printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Portrait;
+                    printDialog.PrintTicket.PageOrientation = System.Printing.PageOrientation.Portrait; // Explicitly set to Portrait
                 }
 
                 if (printDialog.ShowDialog() == true)
                 {
+                    // Set the document to use the full printable area
                     document.PageHeight = printDialog.PrintableAreaHeight;
                     document.PageWidth = printDialog.PrintableAreaWidth;
 
@@ -814,7 +814,6 @@ namespace ExpressServicePOS.UI.Views
                 MessageBox.Show($"خطأ أثناء طباعة الجدول: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private void btnExport_Click(object sender, RoutedEventArgs e)
         {
         }
@@ -930,27 +929,24 @@ namespace ExpressServicePOS.UI.Views
             var document = new FlowDocument
             {
                 FontFamily = new FontFamily("Arial"),
-                FontSize = 8,
-                // Increase page padding, especially at top and right
-                PagePadding = new Thickness(15, 25, 15, 15), // Left, Top, Right, Bottom
+                FontSize = 11,
+                PagePadding = new Thickness(10, 20, 10, 10),
                 FlowDirection = FlowDirection.RightToLeft,
-                ColumnWidth = double.MaxValue,
-                PageWidth = 8.27 * 96,
-                PageHeight = 11.69 * 96
+                ColumnWidth = double.MaxValue
             };
 
             var headerPara = new Paragraph(new Run("EXPRESS SERVICE TEAM"))
             {
-                FontSize = 16,
+                FontSize = 20,
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Center,
-                // Increase top margin to push content down
                 Margin = new Thickness(0, 20, 0, 10)
             };
             document.Blocks.Add(headerPara);
 
             var datePara = new Paragraph(new Run($"تاريخ الطباعة: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"))
             {
+                FontSize = 12,
                 TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 10)
             };
@@ -958,6 +954,7 @@ namespace ExpressServicePOS.UI.Views
 
             var filterPara = new Paragraph
             {
+                FontSize = 12,
                 TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 10)
             };
@@ -988,6 +985,7 @@ namespace ExpressServicePOS.UI.Views
 
             var summaryPara = new Paragraph
             {
+                FontSize = 12,
                 BorderBrush = Brushes.LightGray,
                 BorderThickness = new Thickness(0, 0, 0, 1),
                 Padding = new Thickness(0, 0, 0, 5),
@@ -1016,26 +1014,25 @@ namespace ExpressServicePOS.UI.Views
                 CellSpacing = 0,
                 BorderBrush = Brushes.Black,
                 BorderThickness = new Thickness(0.5),
-                // Add margin to the table to ensure it's not too close to edges
                 Margin = new Thickness(5, 0, 5, 0)
             };
 
-            // Increased column widths
-            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Order #
-            table.Columns.Add(new TableColumn { Width = new GridLength(75) });   // Customer
-            table.Columns.Add(new TableColumn { Width = new GridLength(75) });   // Recipient
-            table.Columns.Add(new TableColumn { Width = new GridLength(65) });   // Phone
-            table.Columns.Add(new TableColumn { Width = new GridLength(85) });   // Address
-            table.Columns.Add(new TableColumn { Width = new GridLength(65) });   // Date
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });   // Status
-            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Price
-            table.Columns.Add(new TableColumn { Width = new GridLength(50) });   // Total
-            table.Columns.Add(new TableColumn { Width = new GridLength(65) });   // Driver
+            // Define columns with proportional widths - Order ID now at the end (will appear at left in RTL)
+            table.Columns.Add(new TableColumn { Width = new GridLength(10, GridUnitType.Star) });  // Customer
+            table.Columns.Add(new TableColumn { Width = new GridLength(10, GridUnitType.Star) });  // Recipient
+            table.Columns.Add(new TableColumn { Width = new GridLength(8, GridUnitType.Star) });   // Phone
+            table.Columns.Add(new TableColumn { Width = new GridLength(15, GridUnitType.Star) });  // Address
+            table.Columns.Add(new TableColumn { Width = new GridLength(8, GridUnitType.Star) });   // Date
+            table.Columns.Add(new TableColumn { Width = new GridLength(7, GridUnitType.Star) });   // Status
+            table.Columns.Add(new TableColumn { Width = new GridLength(6, GridUnitType.Star) });   // Price
+            table.Columns.Add(new TableColumn { Width = new GridLength(6, GridUnitType.Star) });   // Total
+            table.Columns.Add(new TableColumn { Width = new GridLength(8, GridUnitType.Star) });   // Driver
+            table.Columns.Add(new TableColumn { Width = new GridLength(5, GridUnitType.Star) });   // Order # (now last column, appears leftmost in RTL)
 
             var headerRow = new TableRow();
             headerRow.Background = Brushes.LightGray;
 
-            headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
+            // Rearrange cell order to match column order - Order ID now at the end
             headerRow.Cells.Add(CreateTableCell("المرسل", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("المستلم", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("هاتف المستلم", FontWeights.Bold));
@@ -1045,6 +1042,7 @@ namespace ExpressServicePOS.UI.Views
             headerRow.Cells.Add(CreateTableCell("السعر", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("الإجمالي", FontWeights.Bold));
             headerRow.Cells.Add(CreateTableCell("السائق", FontWeights.Bold));
+            headerRow.Cells.Add(CreateTableCell("رقم الطلب", FontWeights.Bold));
 
             var headerRowGroup = new TableRowGroup();
             headerRowGroup.Rows.Add(headerRow);
@@ -1064,7 +1062,7 @@ namespace ExpressServicePOS.UI.Views
                         row.Background = new SolidColorBrush(Color.FromRgb(240, 240, 240));
                     }
 
-                    row.Cells.Add(CreateTableCell(order.DisplayOrderNumber));
+                    // Rearrange cell data to match column order - Order ID now at the end
                     row.Cells.Add(CreateTableCell(order.CustomerName));
                     row.Cells.Add(CreateTableCell(order.RecipientName));
                     row.Cells.Add(CreateTableCell(order.RecipientPhone));
@@ -1074,6 +1072,7 @@ namespace ExpressServicePOS.UI.Views
                     row.Cells.Add(CreateTableCell(order.Price.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.TotalPrice.ToString("N2")));
                     row.Cells.Add(CreateTableCell(order.DriverName));
+                    row.Cells.Add(CreateTableCell(order.DisplayOrderNumber));
 
                     dataRowGroup.Rows.Add(row);
                     rowIndex++;
@@ -1088,13 +1087,30 @@ namespace ExpressServicePOS.UI.Views
                 TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 15, 0, 0),
                 FontStyle = FontStyles.Italic,
-                FontSize = 9
+                FontSize = 10
             };
             document.Blocks.Add(footerPara);
 
             return document;
         }
 
+        // Update the CreateTableCell method to use larger font size
+        private TableCell CreateTableCell(string text, FontWeight fontWeight = default)
+        {
+            var paragraph = new Paragraph(new Run(text ?? "-"))
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(3), // Increased margin from 2 to 3
+                FontSize = 11 // Added explicit font size
+            };
+
+            if (fontWeight != default)
+            {
+                paragraph.FontWeight = fontWeight;
+            }
+
+            return new TableCell(paragraph);
+        }
         private void dgOrders_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             try
@@ -1215,20 +1231,6 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        private TableCell CreateTableCell(string text, FontWeight fontWeight = default)
-        {
-            var paragraph = new Paragraph(new Run(text ?? "-"))
-            {
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(2)
-            };
-
-            if (fontWeight != default)
-            {
-                paragraph.FontWeight = fontWeight;
-            }
-
-            return new TableCell(paragraph);
-        }
+  
     }
 }
