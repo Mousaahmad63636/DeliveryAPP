@@ -312,7 +312,8 @@ namespace ExpressServicePOS.UI.Views
                     CustomerAddress = o.Customer?.Address ?? "",
                     CustomerPhone = o.Customer?.Phone ?? "",
                     OrderDate = o.OrderDate,
-                    DatePaid = o.IsPaid ? o.DeliveryDate ?? o.OrderDate : null,
+                    // Modified to use DeliveryDate as the payment date when IsPaid is true
+                    DatePaid = o.IsPaid ? o.DeliveryDate : null,
                     Status = o.DeliveryStatus,
                     StatusText = GetStatusText(o.DeliveryStatus),
                     Price = o.Price,
