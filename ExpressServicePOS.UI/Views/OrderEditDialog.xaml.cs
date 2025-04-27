@@ -1,5 +1,4 @@
-﻿// File: ExpressServicePOS.UI/Views/OrderEditDialog.xaml.cs
-using ExpressServicePOS.Core.Models;
+﻿using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Data.Context;
 using ExpressServicePOS.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +82,9 @@ namespace ExpressServicePOS.UI.Views
             dtpOrderDate.SelectedDate = _order.OrderDate;
             txtOrderDescription.Text = _order.OrderDescription;
 
+            // Set delivery date if available
+            dtpDeliveryDate.SelectedDate = _order.DeliveryDate;
+
             switch (_order.DeliveryStatus)
             {
                 case DeliveryStatus.Pending:
@@ -148,6 +150,27 @@ namespace ExpressServicePOS.UI.Views
                 cmbCurrency.SelectedIndex = 0;
 
             chkIsPaid.IsChecked = _order.IsPaid;
+
+            // Update delivery date picker state based on payment status
+            dtpDeliveryDate.IsEnabled = _order.IsPaid;
+        }
+
+        private void chkIsPaid_Checked(object sender, RoutedEventArgs e)
+        {
+            // Enable the delivery date picker when order is marked as paid
+            dtpDeliveryDate.IsEnabled = true;
+
+            // If no delivery date is set, default to today
+            if (!dtpDeliveryDate.SelectedDate.HasValue)
+            {
+                dtpDeliveryDate.SelectedDate = DateTime.Today;
+            }
+        }
+
+        private void chkIsPaid_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // Disable the delivery date picker when order is not paid
+            dtpDeliveryDate.IsEnabled = false;
         }
 
         private async void cmbCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -330,6 +353,18 @@ namespace ExpressServicePOS.UI.Views
 
                     _order.Notes = txtNotes.Text;
                     _order.IsPaid = chkIsPaid.IsChecked ?? false;
+
+                    // If order is paid, use the selected delivery date or default to now
+                    if (_order.IsPaid)
+                    {
+                        _order.DeliveryDate = dtpDeliveryDate.SelectedDate ?? DateTime.Now;
+                    }
+                    else
+                    {
+                        // If order is not paid, clear the delivery date
+                        _order.DeliveryDate = null;
+                    }
+
                     _order.SenderName = txtSenderName.Text;
                     _order.SenderPhone = txtSenderPhone.Text;
                     _order.RecipientName = txtRecipientName.Text;

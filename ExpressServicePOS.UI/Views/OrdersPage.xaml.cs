@@ -1200,10 +1200,8 @@ namespace ExpressServicePOS.UI.Views
                         if (order != null && !order.IsPaid)
                         {
                             order.IsPaid = true;
-                            if (!order.DeliveryDate.HasValue)
-                            {
-                                order.DeliveryDate = DateTime.Now;
-                            }
+                            // Always set the delivery date to the current date when marking as paid
+                            order.DeliveryDate = DateTime.Now;
 
                             dbContext.Orders.Update(order);
                             await dbContext.SaveChangesAsync();
@@ -1232,6 +1230,6 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-  
+
     }
 }
