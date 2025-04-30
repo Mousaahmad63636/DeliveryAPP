@@ -34,7 +34,7 @@ namespace ExpressServicePOS.Data.Context
                 }
             }
         }
-
+        public DbSet<Expense> Expenses { get; set; }
         /// <summary>
         /// Gets or sets the customers dataset.
         /// </summary>
@@ -147,6 +147,17 @@ namespace ExpressServicePOS.Data.Context
                     .HasForeignKey(o => o.SubscriptionId)
                     .IsRequired(false)
                     .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<Expense>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Description).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Category).HasMaxLength(50);
+                entity.Property(e => e.Notes).HasMaxLength(500);
+                entity.Property(e => e.PaymentMethod).HasMaxLength(50);
+                entity.Property(e => e.Currency).HasMaxLength(3).HasDefaultValue("USD");
             });
 
             // Configure Driver entity

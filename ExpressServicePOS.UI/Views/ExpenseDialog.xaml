@@ -1,0 +1,93 @@
+﻿<Window x:Class="ExpressServicePOS.UI.Views.ExpenseDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="إضافة/تعديل مصروف" Height="500" Width="450"
+        FlowDirection="RightToLeft" WindowStartupLocation="CenterOwner"
+        Style="{StaticResource MaterialDesignWindow}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" x:Name="txtDialogTitle" Text="إضافة مصروف جديد" 
+                   FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,10,0,0">
+                <!-- Date -->
+                <TextBlock Text="التاريخ:" Margin="0,0,0,5"/>
+                <DatePicker x:Name="dpExpenseDate" Margin="0,0,0,15"/>
+
+                <!-- Description -->
+                <TextBlock Text="الوصف:" Margin="0,0,0,5"/>
+                <TextBox x:Name="txtDescription" Margin="0,0,0,15"/>
+
+                <!-- Category -->
+                <TextBlock Text="الفئة:" Margin="0,0,0,5"/>
+                <ComboBox x:Name="cmbCategory" IsEditable="True" Margin="0,0,0,15">
+                    <ComboBoxItem Content="رواتب"/>
+                    <ComboBoxItem Content="إيجار"/>
+                    <ComboBoxItem Content="مرافق"/>
+                    <ComboBoxItem Content="وقود"/>
+                    <ComboBoxItem Content="صيانة"/>
+                    <ComboBoxItem Content="مستلزمات مكتبية"/>
+                    <ComboBoxItem Content="أخرى"/>
+                </ComboBox>
+
+                <!-- Amount -->
+                <TextBlock Text="المبلغ:" Margin="0,0,0,5"/>
+                <TextBox x:Name="txtAmount" Margin="0,0,0,15"/>
+
+                <!-- Currency -->
+                <TextBlock Text="العملة:" Margin="0,0,0,5"/>
+                <ComboBox x:Name="cmbCurrency" Margin="0,0,0,15">
+                    <ComboBoxItem Content="USD" IsSelected="True"/>
+                    <ComboBoxItem Content="LBP"/>
+                </ComboBox>
+
+                <!-- Payment Method -->
+                <TextBlock Text="طريقة الدفع:" Margin="0,0,0,5"/>
+                <ComboBox x:Name="cmbPaymentMethod" Margin="0,0,0,15">
+                    <ComboBoxItem Content="نقدي" IsSelected="True"/>
+                    <ComboBoxItem Content="بطاقة ائتمان"/>
+                    <ComboBoxItem Content="حوالة بنكية"/>
+                    <ComboBoxItem Content="تحويل إلكتروني"/>
+                </ComboBox>
+
+                <!-- Notes -->
+                <TextBlock Text="ملاحظات:" Margin="0,0,0,5"/>
+                <TextBox x:Name="txtNotes" TextWrapping="Wrap" AcceptsReturn="True" Height="60" Margin="0,0,0,10"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
+            <Button x:Name="btnSave" Content="حفظ" Width="120" Height="36" 
+                    Background="#27ae60" Foreground="White" Margin="0,0,10,0"
+                    Click="btnSave_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="5"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+
+            <Button x:Name="btnCancel" Content="إلغاء" Width="120" Height="36"
+                    Background="#e74c3c" Foreground="White" Margin="10,0,0,0"
+                    Click="btnCancel_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="5"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

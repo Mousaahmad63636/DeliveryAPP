@@ -56,7 +56,10 @@ namespace ExpressServicePOS.UI
         {
             UpdateDateTime();
         }
-
+        private void btnExpenses_Click(object sender, RoutedEventArgs e)
+        {
+            MainFrame.Navigate(new ExpensesPage());
+        }
         private void UpdateDateTime()
         {
             txtCurrentTime.Text = DateTime.Now.ToString("HH:mm:ss");
