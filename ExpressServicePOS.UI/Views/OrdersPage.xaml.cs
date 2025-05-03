@@ -458,8 +458,8 @@ namespace ExpressServicePOS.UI.Views
                         (o.RecipientName?.ToLower()?.Contains(searchTerm) ?? false) ||
                         (o.DisplayOrderNumber?.ToLower()?.Contains(searchTerm) ?? false) ||
                         o.Id.ToString().Contains(searchTerm) ||
-                        (o.DriverName?.ToLower()?.Contains(searchTerm) ?? false) ||
-                        (o.CustomerClass?.ToLower()?.Contains(searchTerm) ?? false)
+                        (o.CustomerClass?.ToLower()?.Contains(searchTerm) ?? false) ||
+                        (o.DriverName?.ToLower()?.Contains(searchTerm) ?? false)  // Added driver name search
                     ).ToList();
                 }
 

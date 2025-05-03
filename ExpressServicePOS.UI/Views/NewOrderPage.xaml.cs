@@ -325,7 +325,6 @@ namespace ExpressServicePOS.UI.Views
             }
         }
 
-        // ExpressServicePOS.UI/Views/NewOrderPage.xaml.cs
         private async Task<bool> SaveOrder()
         {
             try
@@ -371,11 +370,16 @@ namespace ExpressServicePOS.UI.Views
                         IsBreakable = chkBreakable.IsChecked ?? false,
                         IsReplacement = chkReplacement.IsChecked ?? false,
                         IsReturned = chkReturned.IsChecked ?? false,
-
                         // Add subscription information
                         IsCoveredBySubscription = _activeSubscription != null,
                         SubscriptionId = _activeSubscription?.Id
                     };
+
+                    // Set delivery date if the order is marked as paid
+                    if (order.IsPaid)
+                    {
+                        order.DeliveryDate = DateTime.Now;
+                    }
 
                     dbContext.Orders.Add(order);
                     await dbContext.SaveChangesAsync();
