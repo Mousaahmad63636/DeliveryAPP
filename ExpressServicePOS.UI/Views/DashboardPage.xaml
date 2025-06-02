@@ -4,91 +4,203 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:ExpressServicePOS.UI.Views"
-      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      xmlns:controls="clr-namespace:ExpressServicePOS.UI.Controls"
       mc:Ignorable="d" 
-      d:DesignHeight="600" d:DesignWidth="800"
-      Title="لوحة المعلومات">
+      d:DesignHeight="650" d:DesignWidth="1000"
+      Title="لوحة المعلومات"
+      FlowDirection="RightToLeft">
 
     <Grid>
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="20">
-                <materialDesign:ColorZone Mode="PrimaryMid" Padding="15" CornerRadius="5" Margin="0,0,0,20">
-                    <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="ViewDashboard" Width="30" Height="30" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Text="لوحة المعلومات" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </materialDesign:ColorZone>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-                <Grid>
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#3498db" Padding="15" Margin="15,15,15,0" CornerRadius="8,8,0,0">
+            <StackPanel>
+                <TextBlock Text="لوحة المعلومات" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                <TextBlock x:Name="txtWelcome" Text="أهلاً بك في نظام طلبات خدمة اكسبرس!" 
+                           FontSize="14" Foreground="White" Margin="0,5,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Dashboard Content -->
+        <ScrollViewer Grid.Row="1" Margin="15,0,15,15" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Stats Cards -->
+                <Grid Grid.Row="0" Margin="0,15,0,15">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Orders Today Summary -->
-                    <materialDesign:Card Grid.Column="0" Margin="5" UniformCornerRadius="8">
-                        <materialDesign:ColorZone Mode="PrimaryDark" CornerRadius="8">
-                            <StackPanel Margin="15">
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <materialDesign:PackIcon Kind="CalendarToday" Width="24" Height="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="الطلبات اليوم" FontSize="18" Margin="10,0,0,0" Foreground="White"/>
-                                </StackPanel>
-                                <TextBlock x:Name="txtOrdersToday" Text="0" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </materialDesign:ColorZone>
-                    </materialDesign:Card>
+                    <!-- Total Orders -->
+                    <Border Grid.Column="0" Background="White" BorderBrush="#DDDDDD" 
+                            BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,5,0">
+                        <StackPanel>
+                            <TextBlock Text="إجمالي الطلبات" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock x:Name="txtTotalOrders" Text="0" FontSize="32" FontWeight="Bold" 
+                                       Foreground="#3498db" Margin="0,10,0,5"/>
+                            <TextBlock x:Name="txtTotalOrdersSubtext" Text="طلب" FontSize="12" Foreground="#777777"/>
+                        </StackPanel>
+                    </Border>
 
-                    <!-- Delivery Summary -->
-                    <materialDesign:Card Grid.Column="1" Margin="5" UniformCornerRadius="8">
-                        <materialDesign:ColorZone Mode="SecondaryDark" CornerRadius="8">
-                            <StackPanel Margin="15">
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <materialDesign:PackIcon Kind="TruckDelivery" Width="24" Height="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="طلبات قيد التوصيل" FontSize="18" Margin="10,0,0,0" Foreground="White"/>
-                                </StackPanel>
-                                <TextBlock x:Name="txtOrdersInTransit" Text="0" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </materialDesign:ColorZone>
-                    </materialDesign:Card>
+                    <!-- Pending Orders -->
+                    <Border Grid.Column="1" Background="White" BorderBrush="#DDDDDD" 
+                            BorderThickness="1" CornerRadius="8" Padding="15" Margin="5,0,5,0">
+                        <StackPanel>
+                            <TextBlock Text="الطلبات قيد الانتظار" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock x:Name="txtPendingOrders" Text="0" FontSize="32" FontWeight="Bold" 
+                                       Foreground="#f39c12" Margin="0,10,0,5"/>
+                            <TextBlock x:Name="txtPendingOrdersSubtext" Text="طلب" FontSize="12" Foreground="#777777"/>
+                        </StackPanel>
+                    </Border>
 
-                    <!-- Revenue Summary -->
-                    <materialDesign:Card Grid.Column="2" Margin="5" UniformCornerRadius="8">
-                        <materialDesign:ColorZone Background="#4CAF50" CornerRadius="8">
-                            <StackPanel Margin="15">
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <materialDesign:PackIcon Kind="CurrencyUsd" Width="24" Height="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="إيرادات اليوم" FontSize="18" Margin="10,0,0,0" Foreground="White"/>
-                                </StackPanel>
-                                <TextBlock x:Name="txtRevenue" Text="0 ريال" FontSize="30" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </materialDesign:ColorZone>
-                    </materialDesign:Card>
+                    <!-- Today's Orders -->
+                    <Border Grid.Column="2" Background="White" BorderBrush="#DDDDDD" 
+                            BorderThickness="1" CornerRadius="8" Padding="15" Margin="5,0,5,0">
+                        <StackPanel>
+                            <TextBlock Text="طلبات اليوم" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock x:Name="txtTodayOrders" Text="0" FontSize="32" FontWeight="Bold" 
+                                       Foreground="#2ecc71" Margin="0,10,0,5"/>
+                            <TextBlock x:Name="txtTodayOrdersSubtext" Text="طلب" FontSize="12" Foreground="#777777"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Total Customers -->
+                    <Border Grid.Column="3" Background="White" BorderBrush="#DDDDDD" 
+                            BorderThickness="1" CornerRadius="8" Padding="15" Margin="5,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="إجمالي العملاء" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock x:Name="txtTotalCustomers" Text="0" FontSize="32" FontWeight="Bold" 
+                                       Foreground="#9b59b6" Margin="0,10,0,5"/>
+                            <TextBlock x:Name="txtTotalCustomersSubtext" Text="عميل" FontSize="12" Foreground="#777777"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Quick Actions and Subscription Due Widgets -->
+                <Grid Grid.Row="1" Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Quick Actions -->
+                    <Border Grid.Column="0" Background="White" BorderBrush="#DDDDDD" 
+                            BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,5,0">
+                        <StackPanel>
+                            <TextBlock Text="إجراءات سريعة" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                            <WrapPanel>
+                                <Button x:Name="btnNewOrder" Content="طلب جديد" Width="140" Height="60" 
+                                        Background="#3498db" Foreground="White" Margin="0,0,10,10"
+                                        Click="btnNewOrder_Click">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="5"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+
+                                <Button x:Name="btnTrackOrder" Content="متابعة طلب" Width="140" Height="60" 
+                                        Background="#f39c12" Foreground="White" Margin="0,0,10,10"
+                                        Click="btnTrackOrder_Click">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="5"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+
+                                <Button x:Name="btnAddCustomer" Content="عميل جديد" Width="140" Height="60" 
+                                        Background="#2ecc71" Foreground="White" Margin="0,0,10,10"
+                                        Click="btnAddCustomer_Click">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="5"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+
+                                <Button x:Name="btnAddDriver" Content="سائق جديد" Width="140" Height="60" 
+                                        Background="#9b59b6" Foreground="White" Margin="0,0,10,10"
+                                        Click="btnAddDriver_Click">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="5"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+
+                                <Button x:Name="btnManageOrders" Content="إدارة الطلبات" Width="140" Height="60" 
+                                        Background="#e74c3c" Foreground="White" Margin="0,0,10,10"
+                                        Click="btnManageOrders_Click">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="5"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+
+                                <Button x:Name="btnSettings" Content="الإعدادات" Width="140" Height="60" 
+                                        Background="#95a5a6" Foreground="White" Margin="0,0,10,10"
+                                        Click="btnSettings_Click">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="5"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Subscriptions Due Widget -->
+                    <Border Grid.Column="1" Background="White" BorderBrush="#DDDDDD" 
+                            BorderThickness="1" CornerRadius="8" Margin="5,0,0,0">
+                        <controls:SubscriptionsDueWidget/>
+                    </Border>
                 </Grid>
 
                 <!-- Recent Orders -->
-                <materialDesign:Card Margin="0,20,0,0" UniformCornerRadius="8">
-                    <StackPanel Margin="15">
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <materialDesign:PackIcon Kind="ViewList" Width="24" Height="24" VerticalAlignment="Center"/>
-                            <TextBlock Text="آخر الطلبات" FontSize="18" FontWeight="Bold" Margin="10,0,0,0"/>
-                        </StackPanel>
+                <Border Grid.Row="2" Background="White" BorderBrush="#DDDDDD" 
+                        BorderThickness="1" CornerRadius="8" Padding="15">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                        <ListView x:Name="lvRecentOrders" Height="300">
-                            <ListView.View>
-                                <GridView>
-                                    <GridViewColumn Header="رقم الطلب" DisplayMemberBinding="{Binding OrderNumber}" Width="80"/>
-                                    <GridViewColumn Header="العميل" DisplayMemberBinding="{Binding CustomerName}" Width="150"/>
-                                    <GridViewColumn Header="الوصف" DisplayMemberBinding="{Binding Description}" Width="200"/>
-                                    <GridViewColumn Header="التاريخ" DisplayMemberBinding="{Binding Date, StringFormat=\{0:yyyy-MM-dd\}}" Width="100"/>
-                                    <GridViewColumn Header="الحالة" DisplayMemberBinding="{Binding Status}" Width="100"/>
-                                    <GridViewColumn Header="المبلغ" DisplayMemberBinding="{Binding Amount}" Width="120"/>
-                                </GridView>
-                            </ListView.View>
-                        </ListView>
-                    </StackPanel>
-                </materialDesign:Card>
-            </StackPanel>
+                        <TextBlock Grid.Row="0" Text="آخر الطلبات" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <DataGrid Grid.Row="1" x:Name="dgRecentOrders" AutoGenerateColumns="False" 
+                                  IsReadOnly="True" HeadersVisibility="Column"
+                                  BorderThickness="1" BorderBrush="#DDDDDD"
+                                  RowBackground="White" AlternatingRowBackground="#F8F8F8"
+                                  GridLinesVisibility="Horizontal" 
+                                  HorizontalGridLinesBrush="#EEEEEE">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="رقم الطلب" Binding="{Binding OrderNumber}" Width="Auto"/>
+                                <DataGridTextColumn Header="العميل" Binding="{Binding CustomerName}" Width="*"/>
+                                <DataGridTextColumn Header="السائق" Binding="{Binding DriverName}" Width="*"/>
+                                <DataGridTextColumn Header="التاريخ" Binding="{Binding OrderDate, StringFormat={}{0:yyyy-MM-dd}}" Width="Auto"/>
+                                <DataGridTextColumn Header="حالة التوصيل" Binding="{Binding DeliveryStatus}" Width="Auto"/>
+                                <DataGridTextColumn Header="المبلغ" Binding="{Binding FormattedAmount}" Width="Auto"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
         </ScrollViewer>
     </Grid>
 </Page>

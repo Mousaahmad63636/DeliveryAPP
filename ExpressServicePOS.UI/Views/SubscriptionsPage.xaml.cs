@@ -1,5 +1,4 @@
-﻿// File: ExpressServicePOS.UI/Views/SubscriptionsPage.xaml.cs
-using ExpressServicePOS.Core.Models;
+﻿using ExpressServicePOS.Core.Models;
 using ExpressServicePOS.Infrastructure.Services;
 using ExpressServicePOS.UI.Converters;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,9 +12,6 @@ using System.Windows.Controls;
 
 namespace ExpressServicePOS.UI.Views
 {
-    /// <summary>
-    /// Interaction logic for SubscriptionsPage.xaml
-    /// </summary>
     public partial class SubscriptionsPage : Page
     {
         private readonly IServiceScope _serviceScope;
@@ -232,14 +228,20 @@ namespace ExpressServicePOS.UI.Views
             {
                 if (dgSubscriptions.SelectedItem is MonthlySubscription subscription)
                 {
-                    // Create payment dialog (not implemented in this example)
-                    // var dialog = new PaymentDialog(subscription);
-                    // if (dialog.ShowDialog() == true)
-                    // {
-                    //     await LoadSubscriptions();
-                    // }
+                    // Verify the subscription is active
+                    if (!subscription.IsActive)
+                    {
+                        MessageBox.Show("لا يمكن تسجيل دفعة لاشتراك غير نشط", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
 
-                    MessageBox.Show("تسجيل المدفوعات قيد التطوير", "معلومات", MessageBoxButton.OK, MessageBoxImage.Information);
+                    // Open the payment dialog
+                    var dialog = new PaymentDialog(subscription);
+                    if (dialog.ShowDialog() == true)
+                    {
+                        await LoadSubscriptions();
+                        MessageBox.Show("تم تسجيل الدفعة بنجاح", "تم", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
                 }
                 else
                 {
@@ -266,6 +268,27 @@ namespace ExpressServicePOS.UI.Views
         private void cmbStatusFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ApplyFilter();
+        }
+
+        private async void btnViewPayments_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (dgSubscriptions.SelectedItem is MonthlySubscription subscription)
+                {
+                    var dialog = new PaymentHistoryDialog(subscription.Id);
+                    dialog.ShowDialog();
+                }
+                else
+                {
+                    MessageBox.Show("الرجاء اختيار اشتراك لعرض سجل المدفوعات", "تنبيه", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error viewing payment history");
+                MessageBox.Show($"حدث خطأ: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

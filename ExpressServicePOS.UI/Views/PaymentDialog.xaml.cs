@@ -1,6 +1,7 @@
-﻿// File: ExpressServicePOS.UI/Views/PaymentDialog.xaml.cs
-using ExpressServicePOS.Core.Models;
+﻿using ExpressServicePOS.Core.Models;
+using ExpressServicePOS.Data.Context;
 using ExpressServicePOS.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -10,9 +11,6 @@ using System.Windows.Controls;
 
 namespace ExpressServicePOS.UI.Views
 {
-    /// <summary>
-    /// Interaction logic for PaymentDialog.xaml
-    /// </summary>
     public partial class PaymentDialog : Window
     {
         private readonly IServiceScope _serviceScope;

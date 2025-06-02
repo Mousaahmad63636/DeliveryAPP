@@ -1,12 +1,9 @@
-﻿// File: ExpressServicePOS.Core.Models/MonthlySubscription.cs
+﻿// ExpressServicePOS.Core/Models/MonthlySubscription.cs
 using System;
 using System.Collections.Generic;
 
 namespace ExpressServicePOS.Core.Models
 {
-    /// <summary>
-    /// Represents a monthly subscription for a customer in the Express Service system.
-    /// </summary>
     public class MonthlySubscription
     {
         public int Id { get; set; }

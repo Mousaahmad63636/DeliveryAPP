@@ -1,11 +1,8 @@
-﻿// File: ExpressServicePOS.Core.Models/SubscriptionPayment.cs
+﻿// ExpressServicePOS.Core/Models/SubscriptionPayment.cs
 using System;
 
 namespace ExpressServicePOS.Core.Models
 {
-    /// <summary>
-    /// Represents a payment made for a monthly subscription.
-    /// </summary>
     public class SubscriptionPayment
     {
         public int Id { get; set; }

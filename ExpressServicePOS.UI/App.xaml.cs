@@ -89,6 +89,23 @@ namespace ExpressServicePOS.UI
             services.AddScoped<CurrencyService>();
             services.AddScoped<BackupService>();
             services.AddScoped<SubscriptionService>();
+            services.AddScoped<SubscriptionService>();
+            // Register pages
+            services.AddTransient<MainWindow>();
+            services.AddTransient<DashboardPage>();
+            services.AddTransient<CustomersPage>();
+            services.AddTransient<OrdersPage>();
+            services.AddTransient<NewOrderPage>();
+            services.AddTransient<SettingsPage>();
+            services.AddTransient<ConnectionTestPage>();
+            services.AddTransient<DriversPage>();
+            services.AddTransient<ImportExportPage>();
+            services.AddTransient<SubscriptionsPage>();
+            services.AddTransient<SubscriptionReport>();
+            services.AddTransient<OrderLookupPage>();
+
+            // Register Controls
+            services.AddTransient<Controls.SubscriptionsDueWidget>();
 
             // Register pages
             services.AddTransient<MainWindow>();
